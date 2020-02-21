@@ -29,6 +29,8 @@
                                 <field name="cfd_mx_version" />
                                 <field name="cfd_mx_host" />
                                 <field name="cfd_mx_db" />
+                                <field name="cfd_mx_cer" />
+                                <field name="cfd_mx_key" />
                             </group>
                             <group string="General" name="cfdi_general">
                                 <field name="reason_cancel_invoice" />

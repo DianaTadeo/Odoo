@@ -21,7 +21,7 @@
                 t-att-MetodoPago="PUE"
                 t-att-LugarExpedicion="record.company_id.zip"
                 t-att-Confirmacion="1">
-	                	<t t-set="related" t-value="record.uuid_relacionado_id"/>
+		                <t t-set="related" t-value="record.uuid_relacionado_id"/>
                     <t t-if="related">
                         <CfdiRelacionados
                             t-att-TipoRelacion="related.tipo_relacion.clave">
@@ -61,12 +61,12 @@
                                 <Impuestos>
                                     <t t-if="transferred">
                                         <Traslados>
-                                            <t t-set="impuestocode" t-value="record.codigo_impuesto(transfer.name)"/>
                                             <t t-foreach="transferred" t-as="tax">
                                                     <t t-set="tasa" t-value="'%.6f' % abs(tax.amount if tax.amount_type == 'fixed' else (tax.amount / 100.0))"/>
+                                                    <t t-set="code_imp" t-value="record.get_code_impuesto(tax.name)"/>
                                                 <Traslado
                                                     t-att-Base="record.amount_untaxed"
-                                                    t-att-Impuesto="impuestocode"
+                                                    t-att-Impuesto="code_imp"
                                                     t-att-TipoFactor="tax.cfdi_tipofactor"
                                                     t-att-TasaOCuota="tasa if tax.type_tax_use != 'Exento' else False"
                                                     t-att-Importe="tax.amount if tax.type_tax_use != 'Exento' else False"/>
@@ -78,9 +78,10 @@
                                             <t t-foreach="withholding" t-as="tax">
                                                 <t t-set="tag_name" t-value="tax.tag_ids.filtered(lambda r: 'Factor:' not in r.name)"/>
                                                 <t t-set="tasa" t-value="'%.6f' % abs(tax.amount if tax.amount_type == 'fixed' else (tax.amount / 100.0))"/>
+                                                <t t-set="code_imp" t-value="record.get_code_impuesto(tax.name)"/>
                                                 <Retencion
                                                     t-att-Base="record.amount_untaxed"
-                                                    t-att-Impuesto="tax.name"
+                                                    t-att-Impuesto="code_imp"
                                                     t-att-TipoFactor="tax.cfdi_tipofactor"
                                                     t-att-TasaOCuota="tasa"
                                                     t-att-Importe="tax.amount"/>
@@ -123,9 +124,10 @@
                                                <t t-foreach="taxes_line" t-as="tax_line">
                                                    <t t-set="withholding" t-value="taxes_line.filtered(lambda r: r.amount &lt; 0)"/>
                                                    <t t-foreach="withholding" t-as="withhold">
+                                                    <t t-set="code_imp" t-value="record.get_code_impuesto(withhold.name)"/>
                                                        <Retencion
                                                            t-att-Importe="(withhold.amount*line.price_subtotal)*.01"
-                                                           t-att-Impuesto="withhold.type_tax_use"/>
+                                                           t-att-Impuesto="code_imp"/>
                                                    </t>
                                                </t>
                                            </t>
@@ -137,14 +139,14 @@
                                       <t t-foreach="record.invoice_line_ids" t-as="line">
                                           <t t-set="taxes_line" t-value="line.filtered('price_subtotal').invoice_line_tax_ids"/>
                                           <t t-set="taxes_line" t-value="taxes_line.filtered(lambda tax: tax.amount_type != 'group') + taxes_line.filtered(lambda tax: tax.amount_type == 'group').mapped('children_tax_ids')"/>
-                                          <t t-if="taxes_line">
+                                            <t t-if="taxes_line">
                                               <t t-foreach="taxes_line" t-as="tax_line">
-                                                  <t t-set="transferred" t-value="taxes_line.filtered(lambda r: r.amount &lt; 0)"/>
+                                                  <t t-set="transferred" t-value="taxes_line.filtered(lambda r: r.amount &gt; 0)"/>
                                                   <t t-foreach="transferred" t-as="transfer">
-                                                    <t t-set="impuestocode" t-value="record.codigo_impuesto(transfer.name)"/>
+                                                    <t t-set="code_imp" t-value="record.get_code_impuesto(transfer.name)"/>
                                                     <Traslado
-                                                        t-att-Importe="'%.*f' % (decimal_precision, transfer.amount*line.price_subtotal)*.01 or 0.0"
-                                                        t-att-Impuesto="impuestocode"
+                                                        t-att-Importe="transfer.amount*line.price_subtotal*.01"
+                                                        t-att-Impuesto="code_imp"
                                                         t-att-TipoFactor="transfer.cfdi_tipofactor"
                                                         t-att-TasaOCuota="'%.6f' % (transfer.amount)"/>
                                                   </t>

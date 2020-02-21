@@ -44,7 +44,7 @@ Factura Electronica Mexico 3.3
         'views/res_company_view.xml',
         'views/partner_view.xml',
         'views/account_view.xml',
-        #'views/certificate_view.xml',   #Agredado     
+        'views/certificate_view.xml',   #Agredado     
         'views/product_product_views.xml',
         'views/invoice_view.xml',
         'views/report_invoice_mx_document.xml',

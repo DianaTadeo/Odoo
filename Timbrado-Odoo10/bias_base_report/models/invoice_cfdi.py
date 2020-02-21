@@ -228,18 +228,17 @@ class AccountCfdi(models.Model):
         
         return cfdi
 
-    def codigo_impuesto(self, impuesto):
-        if "ISR" in impuesto:
+    def get_code_impuesto(self, name_impuesto):
+        if "ISR" in name_impuesto:
             return "001"
-        if "IVA" in impuesto:
+        elif "IVA" in name_impuesto:
             return "002"
         else:
             return "003"
 
-
     def get_format(self, xml):
         xml = xml.replace("<Comprobante", "<cfdi:Comprobante   xsi:schemaLocation=\"http://www.sat.gob.mx/cfd/3  http://www.sat.gob.mx/sitio_internet/cfd/3/cfdv33.xsd\"xmlns:cfdi=\"http://www.sat.gob.mx/cfd/3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"")
-        xml = xml.replace("</Comprobante", "</cfdi:Comprobante")
+	xml = xml.replace("</Comprobante", "</cfdi:Comprobante")
         xml = xml.replace("<Concepto", "<cfdi:Concepto")
         xml = xml.replace("</Concepto", "</cfdi:Concepto")
         xml = xml.replace("<Traslado", "<cfdi:Traslado")

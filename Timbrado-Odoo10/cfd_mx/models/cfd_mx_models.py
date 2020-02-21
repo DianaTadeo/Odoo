@@ -1056,7 +1056,7 @@ class Aprobacion(models.Model):
     al = fields.Integer(string="Al", required=True)
     sequence_id = fields.Many2one("ir.sequence", string="Secuencia", required=True)
 
-
+"""
 class certificate(models.Model):
     _name = 'cfd_mx.certificate'
 
@@ -1073,7 +1073,7 @@ class certificate(models.Model):
     company_id = fields.Many2one('res.company', string='Compañía', 
             required=True, default=lambda self: self.env.user.company_id.id)
     active = fields.Boolean(default=True, help="If the active field is set to False, it will allow you to hide the certificate without removing it.")
-
+"""
 ########################################
 #
 # Quitar en Futuras versiones

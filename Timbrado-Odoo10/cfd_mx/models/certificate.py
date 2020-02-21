@@ -51,15 +51,13 @@ class Certificate(models.Model):
     key_password = fields.Char('Password llave', size=64, invisible=False, required=True)
     cer_pem = fields.Binary(string='Certificado formato PEM', filters='*.pem,*.cer,*.certificate,*.cert')
     key_pem = fields.Binary(string='Llave formato PEM', filters='*.pem,*.key')
-    pfx = fields.Binary(string='Archivo PFX', filters='*.pfx')
-    pfx_password = fields.Char(string='Password archivo PFX', size=64, invisible=False)
+    #pfx = fields.Binary(string='Archivo PFX', filters='*.pfx')
+    #pfx_password = fields.Char(string='Password archivo PFX', size=64, invisible=False)
     start_date = fields.Date(string='Fecha inicio', required=False) #date_start
     end_date = fields.Date(string='Fecha expiración', required=True) #date_end
     company_id = fields.Many2one('res.company', string='Compañía', 
             required=True, default=lambda self: self.env.user.company_id.id)
     active = fields.Boolean(default=True, help="If the active field is set to False, it will allow you to hide the certificate without removing it.")
-
-
     serial_number = fields.Char(string='Serial number',help='The serial number to add to electronic documents',
         readonly=True,index=True)
  
@@ -151,13 +149,15 @@ class Certificate(models.Model):
     @api.model
     def create(self, data):
         res = super(Certificate, self).create(data)
-        self.clear_caches()
+        #self.clear_caches()
         return res
 
     def write(self, data):
         res = super(Certificate, self).write(data)
-        self.clear_caches()
+        #self.clear_caches()
         return res
+
+    """    
 
     def unlink(self):
         if self.env['account.invoice'].sudo().search(
@@ -169,3 +169,4 @@ class Certificate(models.Model):
         res = super(Certificate, self).unlink()
         self.clear_caches()
         return res
+    """

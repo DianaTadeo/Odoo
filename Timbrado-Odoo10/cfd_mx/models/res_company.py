@@ -34,9 +34,9 @@ class company(models.Model):
     cfd_mx_journal_ids = fields.Many2many("account.journal", string="Diarios")
 
     reason_cancel_invoice = fields.Boolean(string="Motivo de Cancelacion Factura")
-
     
-    # Quitar en Futuras versiones
+    
+    # Quitar en Futuras versiones 
     cfd_mx_finkok_user = fields.Char(string="Finkok User", size=64)
     cfd_mx_finkok_key = fields.Char(string="Finkok Password", size=64)
     cfd_mx_finkok_host = fields.Char(string="Finkok URL Stamp", size=256)
@@ -46,9 +46,33 @@ class company(models.Model):
     cfd_mx_tralix_key = fields.Char(string="Tralix Customer Key", size=64)
     cfd_mx_tralix_host = fields.Char(string="Tralix Host", size=256)
     cfd_mx_tralix_host_test = fields.Char(string="Tralix Host Modo Pruebas", size=256)
-
-
-
+    """
+    cfd_mx_fiscal_regime = fields.Selection(
+        [('601', 'General de Ley Personas Morales'),
+         ('603', 'Personas Morales con Fines no Lucrativos'),
+         ('605', 'Sueldos y Salarios e Ingresos Asimilados a Salarios'),
+         ('606', 'Arrendamiento'),
+         ('607', 'Régimen de Enajenación o Adquisición de Bienes'),
+         ('608', 'Demás ingresos'),
+         ('609', 'Consolidación'),
+         ('610', 'Residentes en el Extranjero sin Establecimiento Permanente en México'),
+         ('611', 'Ingresos por Dividendos (socios y accionistas)'),
+         ('612', 'Personas Físicas con Actividades Empresariales y Profesionales'),
+         ('614', 'Ingresos por intereses'),
+         ('615', 'Régimen de los ingresos por obtención de premios'),
+         ('616', 'Sin obligaciones fiscales'),
+         ('620', 'Sociedades Cooperativas de Producción que optan por diferir sus ingresos'),
+         ('621', 'Incorporación Fiscal'),
+         ('622', 'Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras'),
+         ('623', 'Opcional para Grupos de Sociedades'),
+         ('624', 'Coordinados'),
+         ('628', 'Hidrocarburos'),
+         ('629', 'De los Regímenes Fiscales Preferentes y de las Empresas Multinacionales'),
+         ('630', 'Enajenación de acciones en bolsa de valores')],
+        string="Fiscal Regime",
+        help="It is used to fill Mexican XML CFDI required field "
+        "Comprobante.Emisor.RegimenFiscal.")
+    """
     @api.multi
     def action_ws_finkok_sat(self, service='', cfdi_params={}):
         self.ensure_one()

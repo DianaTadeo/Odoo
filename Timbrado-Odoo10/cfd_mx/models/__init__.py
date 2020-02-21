@@ -7,7 +7,7 @@ import product
 import res_company
 import partner
 import res_country
-#import certificate #agregado
+import certificate #agregado
 import invoice
 import invoice_cfdi
 
