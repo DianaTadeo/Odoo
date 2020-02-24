@@ -4,19 +4,19 @@
         <template id="cfdiv33">
             <Comprobante
                 Version="3.3"
-                t-att-Fecha="record.date_invoice"
-                t-att-Folio="record.internal_number[9:]"
                 t-att-Serie="record.internal_number[:8]"
-                t-att-Sello="DUDA"
+                t-att-Folio="record.internal_number[9:]"
+                t-att-Fecha="0"
+                t-att-Sello="0"
                 t-att-FormaPago="record.formapago_id.clave"
                 t-att-NoCertificado="record.noCertificado"
                 t-att-Certificado="record.company_id.cfd_mx_cer"
                 t-att-CondicionesDePago="record.payment_term_id.name"
-                t-att-SubTotal="record.amount_untaxed"
+                t-att-SubTotal="'%.2f' % (record.amount_untaxed)"
                 t-att-Descuento="record.price_discount_sat"
                 t-att-Moneda="record.currency_id.name"
                 t-att-TipoCambio="record.tipo_cambio"
-                t-att-Total="record.amount_total"
+                t-att-Total="'%.2f' % (record.amount_total)"
                 t-att-TipoDeComprobante="record.tipo_comprobante"
                 t-att-MetodoPago="PUE"
                 t-att-LugarExpedicion="record.company_id.zip"
@@ -49,8 +49,8 @@
                             t-att-ClaveUnidad="line.uom_id.clave_unidadesmedida_id.clave"
                             t-att-Unidad="line.uom_id.name"
                             t-att-Descripcion="line.product_id.name"
-                            t-att-ValorUnitario="line.price_unit"
-                            t-att-Importe="line.price_subtotal"
+                            t-att-ValorUnitario="'%.2f' % (line.price_unit)"
+                            t-att-Importe="'%.2f' % (line.price_subtotal)"
                             t-att-Descuento="line.discount">
                             <t t-set="taxes_line" t-value="line.filtered('price_subtotal').invoice_line_tax_ids"/>
                             <t t-set="taxes_line" t-value="taxes_line.filtered(lambda tax: tax.amount_type != 'group') + taxes_line.filtered(lambda tax: tax.amount_type == 'group').mapped('children_tax_ids')"/>
@@ -65,7 +65,7 @@
                                                     <t t-set="tasa" t-value="'%.6f' % abs(tax.amount if tax.amount_type == 'fixed' else (tax.amount / 100.0))"/>
                                                     <t t-set="code_imp" t-value="record.get_code_impuesto(tax.name)"/>
                                                 <Traslado
-                                                    t-att-Base="record.amount_untaxed"
+                                                    t-att-Base="'%.2f' % (record.amount_untaxed)"
                                                     t-att-Impuesto="code_imp"
                                                     t-att-TipoFactor="tax.cfdi_tipofactor"
                                                     t-att-TasaOCuota="tasa if tax.type_tax_use != 'Exento' else False"
@@ -80,7 +80,7 @@
                                                 <t t-set="tasa" t-value="'%.6f' % abs(tax.amount if tax.amount_type == 'fixed' else (tax.amount / 100.0))"/>
                                                 <t t-set="code_imp" t-value="record.get_code_impuesto(tax.name)"/>
                                                 <Retencion
-                                                    t-att-Base="record.amount_untaxed"
+                                                    t-att-Base="'%.2f' % (record.amount_untaxed)"
                                                     t-att-Impuesto="code_imp"
                                                     t-att-TipoFactor="tax.cfdi_tipofactor"
                                                     t-att-TasaOCuota="tasa"

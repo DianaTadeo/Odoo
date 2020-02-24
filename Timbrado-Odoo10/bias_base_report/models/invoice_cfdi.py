@@ -1,12 +1,19 @@
 # -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
+import subprocess#
+import tempfile#
+
 
 import odoo
-from odoo import models, fields, api, _
+from odoo import models, fields, tools, api, _
 from odoo.exceptions import UserError, RedirectWarning, ValidationError
+from odoo.tools import DEFAULT_SERVER_TIME_FORMAT
 from amount_to_text_es_MX import *
 import requests
+import ssl#
+from lxml import etree#
+from lxml.objectify import fromstring#
 from requests import Request, Session
 from zeep import Client
 from zeep.transports import Transport
@@ -16,10 +23,18 @@ from pytz import timezone, utc
 import textwrap
 import base64, json
 import logging
+from OpenSSL import crypto
 _logger = logging.getLogger(__name__)
 
+"""
+try:
+    from OpenSSL import crypto
+except ImportError:
+    _logger.warning('OpenSSL library not found. If you plan to use l10n_mx_edi, please install the library from https://pypi.python.org/pypi/pyOpenSSL')
+"""
+KEY_TO_PEM_CMD = 'openssl pkcs8 -in %s -inform der -outform pem -out %s -passin file:%s'
 CFDI_TEMPLATE = 'bias_base_report.cfdiv33'
-
+CFDI_XSLT_CADENA = 'bias_base_report/data/3.3/cadenaoriginal.xslt'
 
 catcfdi = {
     'formaPago': ['01','02','03','04','05','06','08','12','13','14','15','17','23','24','25','26','27','28','29','30','99'],
@@ -209,12 +224,29 @@ class AccountCfdi(models.Model):
         data= {'record': self}
         cfdi = qweb.render(CFDI_TEMPLATE, values= data)
         cfdi = self.get_format(cfdi)
-        fil= open('/tmp/prueba.xml', 'w')
-        fil.write(cfdi)
-        fil.close()
         self.cfdi_xml= base64.encodestring(cfdi)
+        self.sello= self.get_sello()
+        tree = fromstring(base64.decodestring(self.cfdi_xml))
+        tree.attrib["Sello"] = self.sello
+        """
+        datetime_mx_tz = datetime.now(tz)
+        time_invoice = datetime.strptime(datetime_mx_tz.strftime("%H:%M:%S"),
+                                         DEFAULT_SERVER_TIME_FORMAT).time()
+        tree.attrib["Fecha"] = datetime.combine(
+            fields.Datetime.from_string(self.date_invoice), time_invoice).strftime('%Y-%m-%dT%H:%M:%S')
+        """
+        datetime_mx_tz = self._update_hour_timezone()
+        time_invoice = datetime.strptime(datetime_mx_tz,
+                                         DEFAULT_SERVER_TIME_FORMAT).time()
+        tree.attrib['Fecha']= datetime.combine(fields.Datetime.from_string(self.date_invoice), time_invoice).strftime('%Y-%m-%dT%H:%M:%S')
+        #values['certificate_number'] = certificate_id.serial_number
+        xml=etree.tostring(tree, pretty_print=True, xml_declaration=True, encoding='UTF-8')
+        fil= open('/tmp/prueba.xml', 'w')
+        fil.write(xml)
+        fil.close()
+        self.cfdi_xml= base64.encodestring(xml)
         #self.cfdi_sign()
-        raise ValidationError("Llego muy lejos")
+        raise ValidationError("Aquí llegó")
         #url = '%s/stamp%s/'%(self.host, ctx['type'])
         #if self.port:
         #    url = '%s:%s/stamp%s/'%(self.host, self.port, ctx['type'])
@@ -226,7 +258,7 @@ class AccountCfdi(models.Model):
         #fil.close()
         #raise ValidationError(json.dumps(res_datas))
         
-        return cfdi
+        return xml#cfdi
 
     def get_code_impuesto(self, name_impuesto):
         if "ISR" in name_impuesto:
@@ -237,7 +269,7 @@ class AccountCfdi(models.Model):
             return "003"
 
     def get_format(self, xml):
-        xml = xml.replace("<Comprobante", "<cfdi:Comprobante   xsi:schemaLocation=\"http://www.sat.gob.mx/cfd/3  http://www.sat.gob.mx/sitio_internet/cfd/3/cfdv33.xsd\"xmlns:cfdi=\"http://www.sat.gob.mx/cfd/3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"")
+        xml = xml.replace("<Comprobante", "<cfdi:Comprobante   xsi:schemaLocation=\"http://www.sat.gob.mx/cfd/3  http://www.sat.gob.mx/sitio_internet/cfd/3/cfdv33.xsd\" xmlns:cfdi=\"http://www.sat.gob.mx/cfd/3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"")
 	xml = xml.replace("</Comprobante", "</cfdi:Comprobante")
         xml = xml.replace("<Concepto", "<cfdi:Concepto")
         xml = xml.replace("</Concepto", "</cfdi:Concepto")
@@ -251,7 +283,7 @@ class AccountCfdi(models.Model):
         xml = xml.replace("</Receptor", "</cfdi:Receptor")
         xml = xml.replace("<CfdiRelacionado", "<cfdi:CfdiRelacionado")
         xml = xml.replace("</CfdiRelacionado", "</cfdi:CfdiRelacionado")
-        return xml.replace("\n","").replace("  ", "")
+        return xml #.replace("\n","").replace("  ", "")
 
 
     def get_info_pac(self):
@@ -577,3 +609,142 @@ class AccountCfdi(models.Model):
             body=body_msg + create_list_html(post_msg),
             subtype='account.mt_invoice_validated')
 
+    ############### TRATAMIENTO DE CERTIFICADO ############
+
+    def generate_cadena(self, xslt_path, cfdi_as_tree):
+        '''Generate the cadena of the cfdi based on an xslt file.
+        The cadena is the sequence of data formed with the information contained within the cfdi.
+        This can be encoded with the certificate to create the digital seal.
+        Since the cadena is generated with the invoice data, any change in it will be noticed resulting in a different
+        cadena and so, ensure the invoice has not been modified.
+
+        :param xslt_path: The path to the xslt file.
+        :param cfdi_as_tree: The cfdi converted as a tree
+        :return: A string computed with the invoice data called the cadena
+        '''
+        xslt_root = etree.parse(tools.file_open(xslt_path))
+        return str(etree.XSLT(xslt_root)(cfdi_as_tree))
+
+
+    def get_sello(self):
+        #tree= self.get_xml_etree(self.cfdi_xml)
+        #raise UserError(fromstring(base64.decodestring(self.cfdi_xml)))
+        cadena= self.generate_cadena(CFDI_XSLT_CADENA, fromstring(base64.decodestring(self.cfdi_xml)))
+        #raise UserError(cadena)
+        sello= self.sudo().get_encrypted_cadena(cadena)
+        return sello
+
+    def get_encrypted_cadena(self, cadena):
+        '''Encrypt the cadena using the private key.
+        '''
+        key_pem = self.get_pem_key(self.company_id.cfd_mx_key, self.company_id.cfd_mx_key_password)
+        
+        private_key = crypto.load_privatekey(crypto.FILETYPE_PEM, key_pem)
+
+        encrypt = 'sha256WithRSAEncryption'
+        cadena_crypted = crypto.sign(private_key, cadena, encrypt)
+        #raise UserError(cadena_crypted)
+        return base64.b64encode(cadena_crypted)
+
+    def get_pem_key(self, key, password):
+        '''Get the current key in PEM format
+        '''
+        return self.convert_key_cer_to_pem(base64.decodestring(key), password.encode('UTF-8'))
+   
+    def get_pem_cer(self, content):
+        '''Get the current content in PEM format
+        '''
+        return ssl.DER_cert_to_PEM_cert(base64.decodestring(content)).encode('UTF-8')
+
+
+    def convert_key_cer_to_pem(self, key, password):
+        # TODO compute it from a python way
+        with tempfile.NamedTemporaryFile('wb', suffix='.key', prefix='edi.mx.tmp.') as key_file, \
+                tempfile.NamedTemporaryFile('wb', suffix='.txt', prefix='edi.mx.tmp.') as pwd_file, \
+                tempfile.NamedTemporaryFile('rb', suffix='.key', prefix='edi.mx.tmp.') as keypem_file:
+            
+            key_file.write(key)
+            key_file.flush()
+            pwd_file.write(password)
+            pwd_file.flush()
+
+            subprocess.call((KEY_TO_PEM_CMD % (key_file.name, keypem_file.name, pwd_file.name)).split())
+            
+            key_pem = keypem_file.read()
+        return key_pem
+    
+    def get_data(self):
+        '''Return the content (b64 encoded) and the certificate decrypted
+        '''
+        self.ensure_one()
+        cer_pem = self.get_pem_cer(self.content)
+        certificate = crypto.load_certificate(crypto.FILETYPE_PEM, cer_pem)
+        for to_del in ['\n', ssl.PEM_HEADER, ssl.PEM_FOOTER]:
+            cer_pem = cer_pem.replace(to_del.encode('UTF-8'), b'')
+        return cer_pem, certificate
+
+
+    @api.constrains('cfdi_certificate', 'cfdi_key', 'cfdi_password')
+    def _check_credentials(self):
+        '''Check the validity of content/key/password and fill the fields
+        with the certificate values.
+        '''
+        mexican_tz = timezone('America/Mexico_City')
+        mexican_dt = self.get_mx_current_datetime()
+        date_format = '%Y%m%d%H%M%SZ'
+        for record in self:
+            # Try to decrypt the certificate
+            try:
+                cer_pem, certificate = record.get_data()
+                before = mexican_tz.localize(
+                    datetime.strptime(certificate.get_notBefore().decode("utf-8"), date_format))
+                after = mexican_tz.localize(
+                    datetime.strptime(certificate.get_notAfter().decode("utf-8"), date_format))
+                serial_number = certificate.get_serial_number()
+            except except_orm as exc_orm:
+                raise exc_orm
+            except Exception:
+                raise ValidationError(_('The certificate content is invalid.'))
+            # Assign extracted values from the certificate
+            record.serial_number = ('%x' % serial_number)[1::2]
+            record.date_start = before.strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+            record.date_end = after.strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+            if mexican_dt > after:
+                raise ValidationError(_('The certificate is expired since %s') % record.date_end)
+            # Check the pair key/password
+            try:
+                key_pem = self.get_pem_key(self.key, self.password)
+                crypto.load_privatekey(crypto.FILETYPE_PEM, key_pem)
+            except Exception:
+                raise ValidationError(_('The certificate key and/or password is/are invalid.'))
+
+    ################################## DATE ##############################################
+    def _get_timezone(self, state):
+        # northwest area
+        if state == 'BCN':
+            return timezone('America/Tijuana')
+        # Southeast area
+        elif state == 'ROO':
+            return timezone('America/Cancun')
+        # Pacific area
+        elif state in ('BCS', 'CHH', 'SIN', 'NAY'):
+            return timezone('America/Chihuahua')
+        # Sonora
+        elif state == 'SON':
+            return timezone('America/Hermosillo')
+        # By default, takes the central area timezone
+        return timezone('America/Mexico_City')
+
+    def _update_hour_timezone(self):
+        partner = self.partner_id
+        tz = self._get_timezone(partner.state_id.code)
+
+        # Check the TZ should be forced for the current journal
+        """
+        tz_force = self.env['ir.config_parameter'].sudo().get_param(
+            'l10n_mx_edi_tz_%s' % self.journal_id.id, default=None)
+        if tz_force:
+            tz = timezone(tz_force)
+        """
+        datetime_mx_tz = datetime.now(tz)
+        return datetime_mx_tz.strftime("%H:%M:%S")

@@ -451,7 +451,7 @@ class AccountInvoice(models.Model):
         message = self.action_validate_cfdi()
         try:
             res = self.with_context({'type': 'invoice'}).stamp(self)
-            raise ValidationError("Llega muy lejos")
+            #raise ValidationError(res)
             if res.get('message'):
                 message = res['message']
             else:
