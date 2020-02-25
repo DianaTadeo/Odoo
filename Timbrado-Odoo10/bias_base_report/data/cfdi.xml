@@ -2,6 +2,7 @@
 <odoo>
     <data>
         <template id="cfdiv33">
+            <t t-set="cambio" t-value="1 if record.currency_id.name == 'MXN' else record.tipo_cambio "/>
             <Comprobante
                 Version="3.3"
                 t-att-Serie="record.internal_number[:8]"
@@ -15,12 +16,12 @@
                 t-att-SubTotal="'%.2f' % (record.amount_untaxed)"
                 t-att-Descuento="record.price_discount_sat"
                 t-att-Moneda="record.currency_id.name"
-                t-att-TipoCambio="record.tipo_cambio"
+                t-att-TipoCambio="cambio"
                 t-att-Total="'%.2f' % (record.amount_total)"
                 t-att-TipoDeComprobante="record.tipo_comprobante"
-                t-att-MetodoPago="PUE"
+                t-att-MetodoPago="record.metodopago_id.clave"
                 t-att-LugarExpedicion="record.company_id.zip"
-                t-att-Confirmacion="1">
+                t-att-Confirmacion="ECVH1">
 		                <t t-set="related" t-value="record.uuid_relacionado_id"/>
                     <t t-if="related">
                         <CfdiRelacionados
@@ -33,12 +34,10 @@
                     <Emisor
                         t-att-Rfc="record.company_id.vat"
                         t-att-Nombre="record.company_id.name"
-                        t-att-RegimenFiscal="0"/>
+                        t-att-RegimenFiscal="601"/>
                     <Receptor
                         t-att-Rfc="record.partner_id.vat"
                         t-att-Nombre="record.partner_id.name"
-                        t-att-ResidenciaFiscal="record.partner_id.zip"
-                        t-att-NumRegIdTrib="record.partner_id.regimen_id.clave"
                         t-att-UsoCFDI="record.usocfdi_id.clave"/>
                     <Conceptos>
                     <t t-foreach="record.invoice_line_ids" t-as="line">
@@ -65,11 +64,11 @@
                                                     <t t-set="tasa" t-value="'%.6f' % abs(tax.amount if tax.amount_type == 'fixed' else (tax.amount / 100.0))"/>
                                                     <t t-set="code_imp" t-value="record.get_code_impuesto(tax.name)"/>
                                                 <Traslado
-                                                    t-att-Base="'%.2f' % (record.amount_untaxed)"
+                                                    t-att-Base="'%.2f' % (line.price_unit)"
                                                     t-att-Impuesto="code_imp"
                                                     t-att-TipoFactor="tax.cfdi_tipofactor"
                                                     t-att-TasaOCuota="tasa if tax.type_tax_use != 'Exento' else False"
-                                                    t-att-Importe="tax.amount if tax.type_tax_use != 'Exento' else False"/>
+                                                    t-att-Importe="'%.2f' % (line.price_unit*(tax.amount/100)) if tax.type_tax_use != 'Exento' else False"/>
                                            </t>
                                         </Traslados>
                                     </t>
@@ -84,7 +83,7 @@
                                                     t-att-Impuesto="code_imp"
                                                     t-att-TipoFactor="tax.cfdi_tipofactor"
                                                     t-att-TasaOCuota="tasa"
-                                                    t-att-Importe="tax.amount"/>
+                                                    t-att-Importe="'%.2f' % ((tax.amount / 100.0)*record.amount_untaxed) if tax.type_tax_use != 'Exento' else False"/>
                                             </t>
                                         </Retenciones>
                                     </t>
@@ -113,7 +112,7 @@
                         </t>
                       </t>
                            <Impuestos
-                               t-att-TotalImpuestosTrasladados="trasladados"
+                               t-att-TotalImpuestosTrasladados="'%.2f' %trasladados"
                                t-att-TotalImpuestosRetenidos="retenidos">
                                <t t-if="retenidos>0.0">
                                    <Retenciones>
@@ -136,23 +135,30 @@
                               </t>
                               <t t-if="trasladados>0.0">   
                                   <Traslados>
+                                      <t t-set="total_transfer" t-value="0"/>
+                                      <t t-set="amount" t-value="1"/>
+                                      <t t-set="cfdi_tipofactor" t-value="a"/>
+                                      <t t-set="code_imp" t-value="a"/>
                                       <t t-foreach="record.invoice_line_ids" t-as="line">
                                           <t t-set="taxes_line" t-value="line.filtered('price_subtotal').invoice_line_tax_ids"/>
                                           <t t-set="taxes_line" t-value="taxes_line.filtered(lambda tax: tax.amount_type != 'group') + taxes_line.filtered(lambda tax: tax.amount_type == 'group').mapped('children_tax_ids')"/>
                                             <t t-if="taxes_line">
-                                              <t t-foreach="taxes_line" t-as="tax_line">
                                                   <t t-set="transferred" t-value="taxes_line.filtered(lambda r: r.amount &gt; 0)"/>
+                                                  
                                                   <t t-foreach="transferred" t-as="transfer">
+                                                    <t t-set="amount" t-value="transfer.amount"/>
+                                                    <t t-set="cfdi_tipofactor" t-value="transfer.cfdi_tipofactor"/>
                                                     <t t-set="code_imp" t-value="record.get_code_impuesto(transfer.name)"/>
-                                                    <Traslado
-                                                        t-att-Importe="transfer.amount*line.price_subtotal*.01"
-                                                        t-att-Impuesto="code_imp"
-                                                        t-att-TipoFactor="transfer.cfdi_tipofactor"
-                                                        t-att-TasaOCuota="'%.6f' % (transfer.amount)"/>
+                                                    <t t-set="total_transfer" t-value="total_transfer+(line.price_unit*(transfer.amount / 100.0))"/>
                                                   </t>
-                                              </t>
+                                                
                                            </t>
                                        </t>
+                                       <Traslado
+                                          t-att-Importe="'%.2f' % total_transfer"
+                                          t-att-Impuesto="code_imp"
+                                          t-att-TipoFactor="cfdi_tipofactor"
+                                          t-att-TasaOCuota="'%.6f' % (amount/100)"/>
                                   </Traslados>
                               </t>
                           </Impuestos>

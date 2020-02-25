@@ -30,6 +30,8 @@ class company(models.Model):
     cfd_mx_test_nomina = fields.Boolean(string=u'Timbrar en modo de prueba (nómina)')
     cfd_mx_test = fields.Boolean(string='Timbrar Prueba', default=True)
     cfd_mx_pac = fields.Selection([('finkok', 'Finkok')], string="PAC", default='')
+    cfd_mx_pac_username = fields.Char(string="Usuario de PAC", size=256)
+    cfd_mx_pac_password = fields.Char(string="Contrasea de usuario de PAC", size=256)
     cfd_mx_version = fields.Selection([('3.3', 'CFDI 3.3')], string='Versión', required=True, default='3.3')
     cfd_mx_journal_ids = fields.Many2many("account.journal", string="Diarios")
 
