@@ -24,15 +24,15 @@ from pytz import timezone, utc
 import textwrap
 import base64, json
 import logging
-from OpenSSL import crypto
+#from OpenSSL import crypto
 _logger = logging.getLogger(__name__)
 
-"""
+
 try:
     from OpenSSL import crypto
 except ImportError:
     _logger.warning('OpenSSL library not found. If you plan to use l10n_mx_edi, please install the library from https://pypi.python.org/pypi/pyOpenSSL')
-"""
+
 KEY_TO_PEM_CMD = 'openssl pkcs8 -in %s -inform der -outform pem -out %s -passin file:%s'
 CFDI_TEMPLATE = 'bias_base_report.cfdiv33'
 CFDI_XSLT_CADENA = 'bias_base_report/data/3.3/cadenaoriginal.xslt'
@@ -130,6 +130,7 @@ class AccountCfdi(models.Model):
     date_start = fields.Char(string="Fecha inicial", copy=False)
     date_end = fields.Char(string="Fecha final", copy=False)
     serie = fields.Char(string="Serie", size=8, copy=False)
+
     tipo_cambio = fields.Float(string="Tipo de cambio", digits=(12, 6),  compute='_get_tipo_cambio')
     cfd_mx_pac = fields.Char(string='PAC', compute='_get_cfd_mx_pac')
     test = fields.Boolean(string="Timbrado en modo de prueba", copy=False)
@@ -145,7 +146,7 @@ class AccountCfdi(models.Model):
     sello = fields.Char(string="Sello", copy=False)
     cadena = fields.Text(string="Cadena original", copy=False)
     noCertificado = fields.Char(string="No. de serie del certificado", size=64, copy=False)
-    hora = fields.Char(string="Hora", size=8, copy=False)
+    #hora = fields.Char(string="Hora", size=8, copy=False)
     
     uuid = fields.Char(string='Timbre fiscal', copy=False)
 
@@ -179,7 +180,8 @@ class AccountCfdi(models.Model):
 
     def stamp(self, obj):
         self._check_credentials()
-        self.cfdi_name = ('%s-%s-MX-Invoice-%s.xml' % (self.journal_id.code, self.name, "3-3")).replace('/', '')
+        self.cfdi_name = ('%s-Factura-%s.xml' % ( self.move_id.name, "3-3")).replace('/', '')
+
         qweb= self.env['ir.qweb']
         ctx = dict(self._context) or {}
         decimal_precision = obj.env['decimal.precision'].precision_get('Account')
@@ -252,24 +254,9 @@ class AccountCfdi(models.Model):
         self.sello= self.get_sello(tree)
         tree.attrib["Sello"] = self.sello
         xml=etree.tostring(tree, pretty_print=True, xml_declaration=True, encoding='UTF-8')
-        fil= open('/tmp/prueba.xml', 'w')
-        fil.write(xml)
-        fil.close()
         self.cfdi_xml= base64.encodestring(xml)
         vals = self._finkok_info(self.company_id, 'sign')
-        self._finkok_sign(vals)
-        #url = '%s/stamp%s/'%(self.host, ctx['type'])
-        #if self.port:
-        #    url = '%s:%s/stamp%s/'%(self.host, self.port, ctx['type'])
-        #params = {"context": {},  "post":  datas }
-        #res_datas =  self.action_server(url, self.host, self.db, params) #---> Eliminar 
-        #raise ValidationError(res_datas)
-        #fil= open('/tmp/otro', 'w')
-        #fil.write(json.dumps(res_datas))
-        #fil.close()
-        #raise ValidationError(json.dumps(res_datas))
-        
-        return xml#cfdi
+        return self._finkok_sign(vals)#xml#cfdi
 
     def get_code_impuesto(self, name_impuesto):
         if "ISR" in name_impuesto:
@@ -331,18 +318,22 @@ class AccountCfdi(models.Model):
         if res_datas.get('result') and res_datas['result'].get('error'):
             return res_datas['result']['error']
         return res_datas
-
+    
+    
+    """
     def get_process_data(self, obj, res):
-	raise ValidationError(res.get('xml'))
         context = dict(self._context) or {}
+        #res= base64.decodestring(res)
+        
         fname = "cfd_%s.xml"%(obj.number or obj.name or '')
+        #raise UserError(res.CodEstatus)
         if context.get('type') and context.get('type') == 'pagos':
-            fname = '%s.xml'%(res.get('UUID') or res.get('uuid') or obj.number or obj.name or '')
+            fname = '%s.xml'% (res.UUID or obj.number or obj.name or '')
         # Adjuntos
         attachment_obj = obj.env['ir.attachment']
         attachment_values = {
             'name': fname,
-            'datas': res.get('xml'),
+            'datas': res.xml,
             'datas_fname': fname,
             'description': 'Comprobante Fiscal Digital',
             'res_model': obj._name,
@@ -351,23 +342,25 @@ class AccountCfdi(models.Model):
         }
         attachment_obj.create(attachment_values)
         # Guarda datos:
+        tree = fromstring(res.xml)
+        #raise UserError(tree.attrib['TipoCambio'])
         values = {
-            'cadena': res.get('cadenaori', ''),
-            'fecha_timbrado': res.get('fecha'),
-            'sello_sat': res.get('satSeal'),
-            'certificado_sat': res.get('noCertificadoSAT'),
-            'sello': res.get('SelloCFD'),
-            'noCertificado': res.get('NoCertificado'),
-            'uuid': res.get('UUID') or res.get('uuid') or '',
-            'qrcode': res.get('qr_img'),
-            'mensaje_pac': res.get('Leyenda'),
-            'tipo_cambio': res.get('TipoCambio'),
-            'cadena_sat': res.get('cadena_sat'),
-            'test': res.get('test')
+            #'cadena': res.get('cadenaori', ''),
+            'fecha_timbrado': res.Fecha,
+            'sello_sat': res.SatSeal,
+            'certificado_sat': res.NoCertificadoSAT,
+            'sello': tree.attrib['NoCertificado'],
+            'noCertificado': tree.attrib['NoCertificado'],
+            'uuid': res.UUID,
+            #'qrcode': res.qr_img,
+            'mensaje_pac': res.CodEstatus,
+            'tipo_cambio': tree.attrib['TipoCambio'],
+            #'cadena_sat': res.get('cadena_sat')
         }
         obj.write(values)
+        #raise ValidationError(values)
         return True
-    """
+
     def action_raise_message(self, message):
         self.ensure_one()
         context = dict(self._context) or {}
@@ -493,7 +486,7 @@ class AccountCfdi(models.Model):
         return res_datas
     """
 
-######################################################################################
+################################# SECCIÓN DE FINKOK ##########################################
 
     def _finkok_info(self, company_id, service_type):
         test = company_id.cfd_mx_test
@@ -536,45 +529,16 @@ class AccountCfdi(models.Model):
                 code = getattr(response.Incidencias.Incidencia[0], 'CodigoError', None)
                 msg = getattr(response.Incidencias.Incidencia[0], 'MensajeIncidencia', None)
             xml_signed = getattr(response, 'xml', None)
-            raise UserError(response)
+            #raise UserError(response)
             if xml_signed:
                 xml_signed = base64.b64encode(xml_signed.encode('utf-8'))
-            inv._post_sign_process(xml_signed, code, msg)
-            fil= open('/tmp/prueba_signed.xml', 'w')
-            fil.write(xml_signed)
-            fil.close()
+            #inv._post_sign_process(xml_signed, code, msg)
+            #fil= open('/tmp/prueba_signed.xml', 'w')
+            #fil.write(xml_signed)
+            #fil.close()
+            #raise #UserError(response)
+            return response
 
-
-    """
-    def cfdi_sign(self):
-        test = self.test
-        username = 'cfdi@vauxoo.com' 
-        password = 'vAux00__'
-        #username = 'cfdi@vauxoo.com' if test else company_id.cfd_finkok_user
-        #password = 'vAux00__' if test else company_id.cfd_finkok_key
-        url='http://demo-facturacion.finkok.com/servicios/soap/stamp.wsdl'\
-                if test else 'http://facturacion.finkok.com/servicios/soap/stamp.wsdl'
-            
-        for inv in self:
-            cfdi = base64.decodestring(inv.cfdi_xml)
-            try:
-                transport = Transport(timeout=20)
-                client = Client(url, transport=transport)
-                response = client.service.stamp(cfdi, username, password)
-            except Exception as e:
-                raise UserError(e)
-                continue
-            code = 0
-            msg = None
-            raise UserError(response)
-            if response.Incidencias:
-                code = getattr(response.Incidencias.Incidencia[0], 'CodigoError', None)
-                msg = getattr(response.Incidencias.Incidencia[0], 'MensajeIncidencia', None)
-            xml_signed = getattr(response, 'xml', None)
-            if xml_signed:
-                xml_signed = base64.b64encode(xml_signed.encode('utf-8'))
-            inv._post_sign_process(xml_signed, code, msg)
-    """
 
     def cfdi_cancel(self, pac_info):
         '''CANCEL for Finkok.
@@ -615,9 +579,8 @@ class AccountCfdi(models.Model):
                 msg = '' if cancelled else _("Cancelling got an error")
             inv._l10n_mx_edi_post_cancel_process(cancelled, code, msg)
 
-####################################
+################## AUXILIARES PARA STAMP ##################
     
-
     @api.model
     def retrieve_attachments(self):
         '''Retrieve all the cfdi attachments generated for this invoice.
@@ -631,13 +594,21 @@ class AccountCfdi(models.Model):
             ('res_id', '=', self.id),
             ('res_model', '=', self._name),
             ('name', '=', self.cfdi_name)]
-        return self.env['ir.attachment'].search(domain)
+        
+        obj = self.env['ir.attachment'].search(domain)
+        raise UserError(obj)
 
     @api.model 
     def retrieve_last_attachment(self):
         attachment_ids = self.retrieve_attachments()
         return attachment_ids and attachment_ids[0] or None
-
+    """   
+    def _compute_checksum(self, bin_data):
+        compute the checksum for the given datas
+            :param bin_data : datas in its binary form
+                # an empty file has a checksum too (for caching)
+       return hashlib.sha1(bin_data or b'').hexdigest()
+    """
     def _post_sign_process(self, xml_signed, code=None, msg=None):
         '''Post process the results of the sign service.
 
@@ -653,23 +624,42 @@ class AccountCfdi(models.Model):
             self.pac_status = 'signed'
             self.cfdi_signed = xml_signed
             # Update the content of the attachment
-            attachment_id = self.retrieve_last_attachment()
-            attachment_id.write({
+            #attachment_id = self.retrieve_last_attachment()
+
+            ctx = self.env.context.copy()
+
+            ctx.pop('default_type', False)
+
+            attachment_id = self.env['ir.attachment'].with_context(ctx).create({
+                'name': self.cfdi_name,
+                'res_model': "account.invoice",
                 'datas': xml_signed,
+                'description': 'FACTURA',
                 'mimetype': 'application/xml'
-            })
+                })
+            #raise UserError('Se creo attachment')
+            #attachment_id.write({
+            #    'datas': xml_signed,
+            #    'mimetype': 'application/xml'
+            #})
             #xml_signed = self.l10n_mx_edi_append_addenda(xml_signed)
             post_msg = [_('The content of the attachment has been updated')]
+
         else:
             body_msg = _('The sign service requested failed')
             post_msg = []
         if code:
+            raise UserError('error?????CODE')
             post_msg.extend([_('Code: %s') % code])
+            
         if msg:
+            raise UserError('error?????MENSAJE')
             post_msg.extend([_('Message: %s') % msg])
-        self.message_post(
-            body=body_msg + create_list_html(post_msg),
-            subtype='account.mt_invoice_validated')
+            
+        #self.message_post(
+        #   body=body_msg + post_msg,
+        #    subtype='account.mt_invoice_validated')
+        raise UserError(body_msg+ ":---" +post_msg)
     
 
     def _l10n_mx_edi_post_cancel_process(self, cancelled, code=None, msg=None):
@@ -769,8 +759,6 @@ class AccountCfdi(models.Model):
             cer_pem = cer_pem.replace(to_del.encode('UTF-8'), b'')
         return cer_pem, certificate
 
-
-    #@api.constrains('res_company.cfdi_certificate', 'res_company.cfdi_key', 'res_company.cfdi_password')
     def _check_credentials(self):
         '''Check the validity of content/key/password and fill the fields
         with the certificate values.
@@ -827,13 +815,5 @@ class AccountCfdi(models.Model):
     def _update_hour_timezone(self):
         partner = self.partner_id
         tz = self._get_timezone(partner.state_id.code)
-
-        # Check the TZ should be forced for the current journal
-        """
-        tz_force = self.env['ir.config_parameter'].sudo().get_param(
-            'l10n_mx_edi_tz_%s' % self.journal_id.id, default=None)
-        if tz_force:
-            tz = timezone(tz_force)
-        """
         datetime_mx_tz = datetime.now(tz)
         return datetime_mx_tz.strftime("%H:%M:%S")

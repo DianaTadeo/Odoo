@@ -451,15 +451,20 @@ class AccountInvoice(models.Model):
         message = self.action_validate_cfdi()
         try:
             res = self.with_context({'type': 'invoice'}).stamp(self)
+            #raise ValidationError(res.xml)
+            #algo= getattr(response.Incidencias.Incidencia[0], 'CodigoError', None)
+            #raise ValidationError(res.get('incidencias'))
             #raise ValidationError(res)
-            if res.get('message'):
-                message = res['message']
+            if res.Incidencias:
+                #raise ValidationError(res.get('incidencias'))
+                message = res.Incidencias.Incidencia[0]
             else:
-                xml_datas = self.cfdi_append_addenda(res.get('result'))
-                raise ValidationError(xml_datas)
-                self.get_process_data(self, xml_datas)
-                #raise UserError('Entra')
-                self.get_process_data_xml(xml_datas)
+                
+                #xml_datas = base64.encodestring(res)
+                #
+                #raise ValidationError(res)
+                self.get_process_data(self, res)
+                self.get_process_data_xml(res)####Se crea el archivo 
         except ValueError, e:
             message = str(e)
         except Exception, e:
@@ -470,37 +475,52 @@ class AccountInvoice(models.Model):
             return False
         return True
 
+    @api.model
+    def get_tfd_etree(self, cfdi):
+        '''Get the TimbreFiscalDigital node from the cfdi.
+
+        :param cfdi: The cfdi as etree
+        :return: the TimbreFiscalDigital node
+        '''
+        attribute = 'tfd:TimbreFiscalDigital[1]'
+        namespace = {'tfd': 'http://www.sat.gob.mx/TimbreFiscalDigital'}
+        node = cfdi.Complemento.xpath(attribute, namespaces=namespace)
+        return node[0] if node else None
+
     def get_process_data_xml(self, res):
         Currency = self.env['res.currency']
         attachment_obj = self.env['ir.attachment']
         Timbre = self.env['cfdi.timbres.sat']
-        currency_id = Currency.search([('name', '=', res.get('Moneda', ''))])
+        tree = fromstring(res.xml)
+        tfdtree= self.get_tfd_etree(tree)
+
+        currency_id = Currency.search([('name', '=', tree.get('Moneda'))])
         if not currency_id:
             currency_id = Currency.search([('name', '=', 'MXN')])
         timbre_id = Timbre.create({
-            'name': res.get('UUID', ''),
-            'cfdi_supplier_rfc': res.get('RfcEmisor', ''),
-            'cfdi_customer_rfc': res.get('RfcReceptor', ''),
-            'cfdi_amount': float(res.get('Total', '0.0')),
-            'cfdi_certificate': res.get('NoCertificado', ''),
-            'cfdi_certificate_sat': res.get('NoCertificadoSAT', ''),
-            'time_invoice': res.get('Fecha', ''),
-            'time_invoice_sat': res.get('FechaTimbrado', ''),
+            'name': tfdtree.get('UUID'),
+            'cfdi_supplier_rfc': tree.Emisor.get('Rfc',tree.Emisor.get('rfc')),
+            'cfdi_customer_rfc': tree.Receptor.get('Rfc',tree.Receptor.get('rfc')),
+            'cfdi_amount': float(tree.get('Total', '0.0')),
+            'cfdi_certificate': tree.get('NoCertificado'),
+            'cfdi_certificate_sat':tfdtree.get('NoCertificadoSAT'),
+            'time_invoice': tree.get('Fecha'),
+            'time_invoice_sat': tfdtree.get('FechaTimbrado'),
             'currency_id': currency_id and currency_id.id or False,
-            'cfdi_type': res.get('TipoDeComprobante', ''),
-            'cfdi_pac_rfc': res.get('RfcProvCertif', ''),
-            'cfdi_cadena_ori': res.get('cadenaOri', ''),
-            'cfdi_cadena_sat': res.get('cadenaSat', ''),
+            'cfdi_type': tree.get('TipoDeComprobante'),
+            'cfdi_pac_rfc': tfdtree.get('RfcProvCertif'),
+            'cfdi_cadena_ori': tfdtree.get('cadenaOri'),#
+            'cfdi_cadena_sat': tfdtree.get('cadenaSat'),#
             'cfdi_state': "Vigente",
             'journal_id': self.journal_id.id,
             'partner_id': self.partner_id.id,
             'test': self.company_id.cfd_mx_test
         })
         if timbre_id:
-            xname = "%s.xml"%res.get('UUID', '')
+            xname = "%s.xml"%tfdtree.get('UUID')
             attachment_values = {
                 'name':  xname,
-                'datas': res.get('xml'),
+                'datas': res.xml,
                 'datas_fname': xname,
                 'description': 'Comprobante Fiscal Digital',
                 'res_model': 'cfdi.timbres.sat',
@@ -508,10 +528,9 @@ class AccountInvoice(models.Model):
                 'type': 'binary'
             }
             attachment_obj.create(attachment_values)
-            raise UserError(attachment_values)
             self.write({
                 'cfdi_timbre_id': timbre_id.id,
-                'uuid': res.get('UUID', ''),
+                'uuid': res.UUID,
                 'test': self.company_id.cfd_mx_test
             })
 
