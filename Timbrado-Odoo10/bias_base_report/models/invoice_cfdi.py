@@ -778,8 +778,8 @@ class AccountCfdi(models.Model):
             after = mexican_tz.localize(
                 datetime.strptime(certificate.get_notAfter().decode("utf-8"), date_format))
             serial_number = certificate.get_serial_number()
-        except except_orm as exc_orm:
-            raise exc_orm
+        #except except_orm as exc_orm:
+        #    raise exc_orm
         except Exception:
             raise ValidationError(_('The certificate content is invalid.'))
         # Assign extracted values from the certificate

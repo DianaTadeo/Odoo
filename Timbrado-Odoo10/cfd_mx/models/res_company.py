@@ -37,7 +37,7 @@ class company(models.Model):
 
     reason_cancel_invoice = fields.Boolean(string="Motivo de Cancelacion Factura")
     
-    
+
     # Quitar en Futuras versiones 
     cfd_mx_finkok_user = fields.Char(string="Finkok User", size=64)
     cfd_mx_finkok_key = fields.Char(string="Finkok Password", size=64)
@@ -48,7 +48,7 @@ class company(models.Model):
     cfd_mx_tralix_key = fields.Char(string="Tralix Customer Key", size=64)
     cfd_mx_tralix_host = fields.Char(string="Tralix Host", size=256)
     cfd_mx_tralix_host_test = fields.Char(string="Tralix Host Modo Pruebas", size=256)
-    """
+   
     cfd_mx_fiscal_regime = fields.Selection(
         [('601', 'General de Ley Personas Morales'),
          ('603', 'Personas Morales con Fines no Lucrativos'),
@@ -74,7 +74,7 @@ class company(models.Model):
         string="Fiscal Regime",
         help="It is used to fill Mexican XML CFDI required field "
         "Comprobante.Emisor.RegimenFiscal.")
-    """
+
     @api.multi
     def action_ws_finkok_sat(self, service='', cfdi_params={}):
         self.ensure_one()
@@ -88,6 +88,7 @@ class company(models.Model):
                 "cfdi": cfdi_params
             }
         }
+        
         data_json = json.dumps(data)
         res = requests.post(url=url, data=data_json, headers=headers)
         res_datas = res.json()
@@ -105,9 +106,8 @@ class company(models.Model):
             # raise UserError(message)
         else:
             return res_datas.get('result')
+        
         return {}
-
-
 
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

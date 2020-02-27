@@ -459,10 +459,6 @@ class AccountInvoice(models.Model):
                 #raise ValidationError(res.get('incidencias'))
                 message = res.Incidencias.Incidencia[0]
             else:
-                
-                #xml_datas = base64.encodestring(res)
-                #
-                #raise ValidationError(res)
                 self.get_process_data(self, res)
                 self.get_process_data_xml(res)####Se crea el archivo 
         except ValueError, e:
@@ -470,9 +466,10 @@ class AccountInvoice(models.Model):
         except Exception, e:
             message = str(e)
         if message:
-            message = message.replace("(u'", "").replace("', '')", "")
-            self.with_context(**context).action_raise_message("Error al Generar el XML \n\n %s "%( message.upper() ))
-            return False
+            raise UserError(message)
+            #message = message.replace("(u'", "").replace("', '')", "")
+            #self.with_context(**context).action_raise_message("Error al Generar el XML \n\n %s "%( message.upper() ))
+            #return False
         return True
 
     @api.model
