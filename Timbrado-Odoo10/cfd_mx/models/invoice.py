@@ -451,12 +451,7 @@ class AccountInvoice(models.Model):
         message = self.action_validate_cfdi()
         try:
             res = self.with_context({'type': 'invoice'}).stamp(self)
-            #raise ValidationError(res.xml)
-            #algo= getattr(response.Incidencias.Incidencia[0], 'CodigoError', None)
-            #raise ValidationError(res.get('incidencias'))
-            #raise ValidationError(res)
             if res.Incidencias:
-                #raise ValidationError(res.get('incidencias'))
                 message = res.Incidencias.Incidencia[0]
             else:
                 self.get_process_data(self, res)
@@ -579,11 +574,6 @@ class AccountInvoice(models.Model):
         else:
             raise UserError("No existe addenda relacionada")
         return True
-
-
-
-
-
 
 
     # Cancela xml
@@ -753,6 +743,22 @@ class AccountInvoice(models.Model):
     @api.multi
     def action_invoice_cancel_cfdi(self):
         self.ensure_one()
+        try:
+            res = self.with_context({'type': 'invoice'}).cancelation(self)
+
+        except ValueError, e:
+            message = str(e)
+        except Exception, e:
+            message = str(e)
+        if message:
+            raise UserError(message)
+        if not res:
+            return True
+        if res.get('Estado', '') == 'Cancelado':
+            self.action_invoice_cancel_cfdi_sat()
+            return self.action_invoice_cancel()
+
+        
         if not self.cfdi_is_required:
             return self.action_invoice_cancel()
         if self.company_id.cfd_mx_test:
@@ -770,13 +776,8 @@ class AccountInvoice(models.Model):
             self.message_post(
                 body='<p style="color:red">' + _('You cannot cancel an invoice which is partially paid. You need to cancel payment entries first ') + '</p>',
                 subtype='account.mt_invoice_validated')
-
-        self.action_invoice_cancel_cfdi_sat()
-        res = self.action_get_status_sat()
-        if not res:
-            return True
-        if res.get('Estado', '') == 'Cancelado':
-            return self.action_invoice_cancel()
+        
+        
         return True
 
     @api.multi

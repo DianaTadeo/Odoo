@@ -178,6 +178,11 @@ class AccountCfdi(models.Model):
         self.db = cia.cfd_mx_db
         return True
 
+    def cancelation(self, obj):
+        obj._check_credentials()
+        vals = self._finkok_info(obj.company_id, 'cancel')
+        return self._finkok_cancel(vals)#xml#cfdi
+
     def stamp(self, obj):
         self._check_credentials()
         self.cfdi_name = ('%s-Factura-%s.xml' % ( self.move_id.name, "3-3")).replace('/', '')
@@ -530,6 +535,8 @@ class AccountCfdi(models.Model):
                 msg = getattr(response.Incidencias.Incidencia[0], 'MensajeIncidencia', None)
             xml_signed = getattr(response, 'xml', None)
             #raise UserError(response)
+
+            
             if xml_signed:
                 xml_signed = base64.b64encode(xml_signed.encode('utf-8'))
             #inv._post_sign_process(xml_signed, code, msg)
@@ -540,21 +547,21 @@ class AccountCfdi(models.Model):
             return response
 
 
-    def cfdi_cancel(self, pac_info):
+    def _finkok_cancel(self, pac_info):
         '''CANCEL for Finkok.
         '''
         url = pac_info['url']
         username = pac_info['username']
         password = pac_info['password']
         for inv in self:
-            uuid = inv.l10n_mx_edi_cfdi_uuid
-            certificate_ids = inv.company_id.l10n_mx_edi_certificate_ids
-            certificate_id = certificate_ids.sudo().get_valid_certificate()
+            uuid = inv.uuid
+            #certificate = inv.company_id.cer
+            #certificate_id = certificate_ids.sudo().get_valid_certificate()
             company_id = self.company_id
-            cer_pem = certificate_id.get_pem_cer(
-                certificate_id.content)
-            key_pem = certificate_id.get_pem_key(
-                certificate_id.key, certificate_id.password)
+            cer_pem = self.get_pem_cer(
+                inv.company_id.cfd_mx_cer)
+            key_pem = self.get_pem_key(
+                inv.company_id.cfd_mx_key, inv.company_id.cfd_mx_key_password)
             cancelled = False
             code = False
             try:
@@ -566,8 +573,10 @@ class AccountCfdi(models.Model):
                 response = client.service.cancel(
                     invoices_list, username, password, company_id.vat, cer_pem, key_pem)
             except Exception as e:
-                inv.l10n_mx_edi_log_error(str(e))
-                continue
+                raise UserError(e)
+                #inv.l10n_mx_edi_log_error(str(e))
+                #continue
+            raise UserError(response)
             if not getattr(response, 'Folios', None):
                 code = getattr(response, 'CodEstatus', None)
                 msg = _("Cancelling got an error") if code else _('A delay of 2 hours has to be respected before to cancel')
@@ -577,38 +586,9 @@ class AccountCfdi(models.Model):
                 # no show code and response message if cancel was success
                 code = '' if cancelled else code
                 msg = '' if cancelled else _("Cancelling got an error")
-            inv._l10n_mx_edi_post_cancel_process(cancelled, code, msg)
+            inv._post_cancel_process(cancelled, code, msg)
 
-################## AUXILIARES PARA STAMP ##################
-    
-    @api.model
-    def retrieve_attachments(self):
-        '''Retrieve all the cfdi attachments generated for this invoice.
 
-        :return: An ir.attachment recordset
-        '''
-        self.ensure_one()
-        if not self.cfdi_name:
-            return []
-        domain = [
-            ('res_id', '=', self.id),
-            ('res_model', '=', self._name),
-            ('name', '=', self.cfdi_name)]
-        
-        obj = self.env['ir.attachment'].search(domain)
-        raise UserError(obj)
-
-    @api.model 
-    def retrieve_last_attachment(self):
-        attachment_ids = self.retrieve_attachments()
-        return attachment_ids and attachment_ids[0] or None
-    """   
-    def _compute_checksum(self, bin_data):
-        compute the checksum for the given datas
-            :param bin_data : datas in its binary form
-                # an empty file has a checksum too (for caching)
-       return hashlib.sha1(bin_data or b'').hexdigest()
-    """
     def _post_sign_process(self, xml_signed, code=None, msg=None):
         '''Post process the results of the sign service.
 
@@ -662,7 +642,7 @@ class AccountCfdi(models.Model):
         raise UserError(body_msg+ ":---" +post_msg)
     
 
-    def _l10n_mx_edi_post_cancel_process(self, cancelled, code=None, msg=None):
+    def _post_cancel_process(self, cancelled, code=None, msg=None):
         '''Post process the results of the cancel service.
 
         :param cancelled: is the cancel has been done with success
@@ -673,7 +653,7 @@ class AccountCfdi(models.Model):
         self.ensure_one()
         if cancelled:
             body_msg = _('The cancel service has been called with success')
-            self.l10n_mx_edi_pac_status = 'cancelled'
+            #self.l10n_mx_edi_pac_status = 'cancelled'
         else:
             body_msg = _('The cancel service requested failed')
         post_msg = []
@@ -684,6 +664,37 @@ class AccountCfdi(models.Model):
         self.message_post(
             body=body_msg + create_list_html(post_msg),
             subtype='account.mt_invoice_validated')
+
+    ################## AUXILIARES PARA STAMP ##################
+    
+    @api.model
+    def retrieve_attachments(self):
+        '''Retrieve all the cfdi attachments generated for this invoice.
+
+        :return: An ir.attachment recordset
+        '''
+        self.ensure_one()
+        if not self.cfdi_name:
+            return []
+        domain = [
+            ('res_id', '=', self.id),
+            ('res_model', '=', self._name),
+            ('name', '=', self.cfdi_name)]
+        
+        obj = self.env['ir.attachment'].search(domain)
+        raise UserError(obj)
+
+    @api.model 
+    def retrieve_last_attachment(self):
+        attachment_ids = self.retrieve_attachments()
+        return attachment_ids and attachment_ids[0] or None
+    """   
+    def _compute_checksum(self, bin_data):
+        compute the checksum for the given datas
+            :param bin_data : datas in its binary form
+                # an empty file has a checksum too (for caching)
+       return hashlib.sha1(bin_data or b'').hexdigest()
+    """
 
     ############### TRATAMIENTO DE CERTIFICADO ############
 
