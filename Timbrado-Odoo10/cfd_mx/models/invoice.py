@@ -454,7 +454,7 @@ class AccountInvoice(models.Model):
             if res.Incidencias:
                 message = res.Incidencias.Incidencia[0]
             else:
-                self.get_process_data(self, res)
+                #self.get_process_data(self, res)
                 self.get_process_data_xml(res)####Se crea el archivo 
         except ValueError, e:
             message = str(e)
@@ -478,6 +478,12 @@ class AccountInvoice(models.Model):
         namespace = {'tfd': 'http://www.sat.gob.mx/TimbreFiscalDigital'}
         node = cfdi.Complemento.xpath(attribute, namespaces=namespace)
         return node[0] if node else None
+
+
+    def get_process_data(self, obj, res):
+        
+        #raise ValidationError(values)
+        return True
 
     def get_process_data_xml(self, res):
         Currency = self.env['res.currency']
@@ -508,7 +514,53 @@ class AccountInvoice(models.Model):
             'partner_id': self.partner_id.id,
             'test': self.company_id.cfd_mx_test
         })
+
+        
+
         if timbre_id:
+            ##########
+
+            context = dict(self._context) or {}
+            fname = "cfd_%s.xml"%(self.number or self.name or '')
+        
+            if context.get('type') and context.get('type') == 'pagos':
+                fname = '%s.xml'% (res.UUID or self.number or self.name or '')
+            # Adjuntos
+            attachment_obj = self.env['ir.attachment']
+            attachment_values = {
+                'name': fname,
+                'datas': base64.encodestring(res.xml),
+                'datas_fname': fname,
+                'description': 'Comprobante Fiscal Digital',
+                'res_model': self._name,
+                'res_id': self.id,
+                'mimetype': 'application/xml',
+                'type': 'binary'
+            }
+            attachment_obj.create(attachment_values)
+            # Guarda datos:
+            tree = fromstring(res.xml)
+            #raise UserError(tree.attrib['TipoCambio'])
+            values = {
+                'cadena': self.cadena,
+                'fecha_timbrado': res.Fecha,
+                'sello_sat': res.SatSeal,
+                'certificado_sat': res.NoCertificadoSAT,
+                'sello': tree.attrib['Sello'],
+                'noCertificado': tree.attrib['NoCertificado'],
+                'uuid': res.UUID,
+                #'qrcode': res.qr_img,
+                'mensaje_pac': res.CodEstatus,
+                'tipo_cambio': tree.attrib['TipoCambio'],
+                #'cadena_sat': res.get('cadena_sat')
+            }
+            self.write(values)
+            
+
+
+            ##########
+
+            """
             xname = "%s.xml"%tfdtree.get('UUID')
             attachment_values = {
                 'name':  xname,
@@ -517,14 +569,16 @@ class AccountInvoice(models.Model):
                 'description': 'Comprobante Fiscal Digital',
                 'res_model': 'cfdi.timbres.sat',
                 'res_id': timbre_id.id,
-                'type': 'binary'
+                'mimetype': 'application/xml'
+                #'type': 'binary'
             }
-            attachment_obj.create(attachment_values)
+
             self.write({
                 'cfdi_timbre_id': timbre_id.id,
                 'uuid': res.UUID,
                 'test': self.company_id.cfd_mx_test
             })
+            """
 
     @api.multi
     def get_comprobante_addenda(self):

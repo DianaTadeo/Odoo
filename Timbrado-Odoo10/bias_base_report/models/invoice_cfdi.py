@@ -180,8 +180,8 @@ class AccountCfdi(models.Model):
 
     def cancelation(self, obj):
         obj._check_credentials()
-        vals = self._finkok_info(obj.company_id, 'cancel')
-        return self._finkok_cancel(vals)#xml#cfdi
+        vals = self._finkok_info(self.company_id, 'cancel')
+        return self._finkok_cancel(vals)
 
     def stamp(self, obj):
         self._check_credentials()
@@ -338,11 +338,12 @@ class AccountCfdi(models.Model):
         attachment_obj = obj.env['ir.attachment']
         attachment_values = {
             'name': fname,
-            'datas': res.xml,
+            'datas': base64.encodestring(res.xml),
             'datas_fname': fname,
             'description': 'Comprobante Fiscal Digital',
             'res_model': obj._name,
             'res_id': obj.id,
+            'mimetype': 'application/xml',
             'type': 'binary'
         }
         attachment_obj.create(attachment_values)
@@ -564,6 +565,7 @@ class AccountCfdi(models.Model):
                 inv.company_id.cfd_mx_key, inv.company_id.cfd_mx_key_password)
             cancelled = False
             code = False
+            #raise UserError(inv.company_id.cfd_mx_key_password+ ' --- '+ base64.b64encode(cer_pem)+ '---------' +base64.b64encode(key_pem))
             try:
                 transport = Transport(timeout=20)
                 client = Client(url, transport=transport)
@@ -572,6 +574,7 @@ class AccountCfdi(models.Model):
                 invoices_list = client.get_type('ns1:UUIDS')(uuid_type)
                 response = client.service.cancel(
                     invoices_list, username, password, company_id.vat, cer_pem, key_pem)
+                raise UserError(response)
             except Exception as e:
                 raise UserError(e)
                 #inv.l10n_mx_edi_log_error(str(e))
@@ -717,8 +720,10 @@ class AccountCfdi(models.Model):
         #tree= self.get_xml_etree(self.cfdi_xml)
         #raise UserError(fromstring(base64.decodestring(self.cfdi_xml)))
         cadena= self.generate_cadena(CFDI_XSLT_CADENA, tree)
+        self.cadena=cadena
         #raise UserError(cadena)
         sello= self.sudo().get_encrypted_cadena(cadena)
+        self.sello=sello
         return sello
 
     def get_encrypted_cadena(self, cadena):
