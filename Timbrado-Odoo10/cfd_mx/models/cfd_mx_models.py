@@ -1056,6 +1056,14 @@ class Aprobacion(models.Model):
     al = fields.Integer(string="Al", required=True)
     sequence_id = fields.Many2one("ir.sequence", string="Secuencia", required=True)
 
+class ResBank(models.Model):
+    _inherit = "res.bank"
+
+    cfd_mx_vat = fields.Char(
+        string="VAT", help="Indicate the VAT of this institution, the value "
+        "could be used in the payment complement in Mexico documents")
+
+
 """
 class certificate(models.Model):
     _name = 'cfd_mx.certificate'
@@ -1079,3 +1087,49 @@ class certificate(models.Model):
 # Quitar en Futuras versiones
 #
 ########################################
+
+class ResCurrency(models.Model):
+    _inherit = 'res.currency'
+
+    cfd_mx_decimal_places = fields.Integer(
+        'Number of decimals', readonly=True,
+        help='Number of decimals to be supported for this currency, according '
+        'to the SAT. It will be used in the CFDI to format amounts.')
+
+
+    def _convert(self, from_amount, to_currency, company, date, round=True):
+        """Returns the converted amount of ``from_amount``` from the currency
+           ``self`` to the currency ``to_currency`` for the given ``date`` and
+           company.
+
+           :param company: The company from which we retrieve the convertion rate
+           :param date: The nearest date from which we retriev the conversion rate.
+           :param round: Round the result or not
+        """
+        self, to_currency = self or to_currency, to_currency or self
+        assert self, "convert amount from unknown currency"
+        assert to_currency, "convert amount to unknown currency"
+        assert company, "convert amount from unknown company"
+        assert date, "convert amount from unknown date"
+        # apply conversion rate
+        if self == to_currency:
+            to_amount = from_amount
+        else:
+            to_amount = from_amount * self._get_conversion_rate(self, to_currency)
+        # apply rounding
+        return to_currency.round(to_amount) if round else to_amount
+
+
+    """
+
+    def _get_conversion_rate(self, from_currency, to_currency, company, date):
+        currency_rates = (from_currency + to_currency)._get_rates(company, date)
+        res = currency_rates.get(to_currency.id) / currency_rates.get(from_currency.id)
+        return res
+
+    def _get_conversion_rate(self, from_currency, to_currency):
+        from_currency = from_currency.with_env(self.env)
+        to_currency = to_currency.with_env(self.env)
+        return to_currency.rate / from_currency.rate
+
+    """

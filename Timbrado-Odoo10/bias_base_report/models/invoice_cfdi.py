@@ -167,6 +167,16 @@ class AccountCfdi(models.Model):
     cfdi_name = fields.Char(string='CFDI name', copy=False, readonly=True,help='The attachment name of the CFDI.')
     mandada_cancelar = fields.Boolean('Mandada Cancelar', copy=False)
 
+    @api.model
+    def get_payment_method_cfdi(self):
+        self.ensure_one()
+        if self.cfdi_xml:
+            #raise UserError(self.cfdi_xml)
+            tree = fromstring(base64.decodestring(self.cfdi_xml))
+            return tree.get('MetodoPago')
+        else:
+            None
+
 
     def get_datas(self, obj, cia):
         self.obj = obj
@@ -249,12 +259,17 @@ class AccountCfdi(models.Model):
         cfdi = self.get_format(cfdi)
         tree = fromstring(cfdi)
 
+        fil= open('/tmp/prueba.xml', 'w')
+        fil.write(cfdi)
+        fil.close()
+
         #Se cambia el atributo de FECHA al formato adecuado
         datetime_mx_tz = self._update_hour_timezone()
         time_invoice = datetime.strptime(datetime_mx_tz,
                                          DEFAULT_SERVER_TIME_FORMAT).time()
         tree.attrib['Fecha']= datetime.combine(fields.Datetime.from_string(self.date_invoice), time_invoice).strftime('%Y-%m-%dT%H:%M:%S')
        
+
         #Se genera el atributo de SELLO
         self.sello= self.get_sello(tree)
         tree.attrib["Sello"] = self.sello
@@ -366,6 +381,17 @@ class AccountCfdi(models.Model):
         obj.write(values)
         #raise ValidationError(values)
         return True
+
+    def get_cant_letra(self, currency, amount):
+        if currency.name == 'MXN':
+            nombre = currency.nombre_largo or 'pesos'
+            siglas = 'M.N.'
+        else:
+            nombre = currency.nombre_largo or ''
+            siglas = currency.name
+        return amount_to_text().amount_to_text_cheque(float(amount), nombre,
+                                                      siglas).capitalize()
+
 
     def action_raise_message(self, message):
         self.ensure_one()
@@ -491,6 +517,17 @@ class AccountCfdi(models.Model):
         res_datas =  self.action_server(url, host, db, params)
         return res_datas
     """
+
+    @staticmethod
+    def _get_serie_and_folio(number):
+        values = {'serie': None, 'folio': None}
+        number = (number or '').strip()
+        number_matchs = [rn for rn in re.finditer('\d+', number)]
+        if number_matchs:
+            last_number_match = number_matchs[-1]
+            values['serie'] = number[:last_number_match.start()] or None
+            values['folio'] = last_number_match.group().lstrip('0') or None
+        return values
 
 ################################# SECCIÓN DE FINKOK ##########################################
 
@@ -833,3 +870,41 @@ class AccountCfdi(models.Model):
         tz = self._get_timezone(partner.state_id.code)
         datetime_mx_tz = datetime.now(tz)
         return datetime_mx_tz.strftime("%H:%M:%S")
+
+
+def _get_reconciled_payments(self):
+        """Helper used to retrieve the reconciled payments on this journal entry"""
+        pay_term_line_ids = self.line_ids.filtered(lambda line: line.account_id.user_type_id.type in ('receivable', 'payable'))
+        reconciled_amls = pay_term_line_ids.mapped('matched_debit_ids.debit_move_id') + \
+                          pay_term_line_ids.mapped('matched_credit_ids.credit_move_id')
+        return reconciled_amls.mapped('payment_id')
+
+
+
+"""
+
+class MetodoPago(models.Model):
+    _name = "cfd_mx.metodopago"
+
+    name = fields.Char("Descripcion", size=128, required=True, default="")
+    clave = fields.Char(string="Clave", help="Clave del Catálogo del SAT")
+
+    @api.multi
+    def name_get(self):
+        result = []
+        for rec in self:
+            result.append((rec.id, "[%s] %s" % (rec.clave, rec.name or '')))
+        return result
+
+    @api.model
+    def name_search(self, name, args=None, operator='ilike', limit=100):
+        recs = super(MetodoPago, self).name_search(name, args=args, operator=operator, limit=limit)
+        args = args or []
+        recs = self.browse()
+        if name:
+            recs = self.search([('clave', operator, name)] + args, limit=limit)
+        if not recs:
+            recs = self.search([('name', operator, name)] + args, limit=limit)
+        return recs.name_get()
+
+"""

@@ -139,26 +139,81 @@
                                       <t t-set="amount" t-value="1"/>
                                       <t t-set="cfdi_tipofactor" t-value="a"/>
                                       <t t-set="code_imp" t-value="a"/>
+
                                       <t t-foreach="record.invoice_line_ids" t-as="line">
+
                                           <t t-set="taxes_line" t-value="line.filtered('price_subtotal').invoice_line_tax_ids"/>
                                           <t t-set="taxes_line" t-value="taxes_line.filtered(lambda tax: tax.amount_type != 'group') + taxes_line.filtered(lambda tax: tax.amount_type == 'group').mapped('children_tax_ids')"/>
-                                            <t t-if="taxes_line">
-                                                  <t t-set="transferred" t-value="taxes_line.filtered(lambda r: r.amount &gt; 0)"/>
-                                                  
+
+
+                                          <t t-set="taxes_line16IVAT" t-value="taxes_line.filtered(lambda tax: record.get_code_impuesto(tax.name) == '002' and tax.cfdi_tipofactor == 'Tasa' and tax.amount/100 &lt;= 0.161) "/>
+
+                                            <t t-if="taxes_line16IVAT">
+                                                  <t t-set="transferred" t-value="taxes_line16IVAT.filtered(lambda r: r.amount &gt; 0)"/>
                                                   <t t-foreach="transferred" t-as="transfer">
                                                     <t t-set="amount" t-value="transfer.amount"/>
                                                     <t t-set="cfdi_tipofactor" t-value="transfer.cfdi_tipofactor"/>
                                                     <t t-set="code_imp" t-value="record.get_code_impuesto(transfer.name)"/>
                                                     <t t-set="total_transfer" t-value="total_transfer+(line.price_unit*(transfer.amount / 100.0))"/>
+                                                    <Traslado
+                                                      t-att-Importe="'%.2f' % total_transfer"
+                                                      t-att-Impuesto="code_imp"
+                                                      t-att-TipoFactor="cfdi_tipofactor"
+                                                      t-att-TasaOCuota="'%.6f' % (amount/100)"/>
                                                   </t>
-                                                
                                            </t>
+
+                                            <t t-set="taxes_line265IEPST" t-value="taxes_line.filtered(lambda tax: record.get_code_impuesto(tax.name) == '003' and tax.cfdi_tipofactor == 'Tasa' and tax.amount/100 &lt;= 0.266 ) "/>
+                                            <t t-if="taxes_line16EIPT">
+                                                  <t t-set="transferred" t-value="taxes_line265IEPST.filtered(lambda r: r.amount &gt; 0)"/>
+                                                  <t t-foreach="transferred" t-as="transfer">
+                                                    <t t-set="amount" t-value="transfer.amount"/>
+                                                    <t t-set="cfdi_tipofactor" t-value="transfer.cfdi_tipofactor"/>
+                                                    <t t-set="code_imp" t-value="record.get_code_impuesto(transfer.name)"/>
+                                                    <t t-set="total_transfer" t-value="total_transfer+(line.price_unit*(transfer.amount / 100.0))"/>
+                                                    <Traslado
+                                                      t-att-Importe="'%.2f' % total_transfer"
+                                                      t-att-Impuesto="code_imp"
+                                                      t-att-TipoFactor="cfdi_tipofactor"
+                                                      t-att-TasaOCuota="'%.6f' % (amount/100)"/>
+                                                  </t>
+                                           </t>
+
+
+                                           <t t-set="taxes_line30IEPST" t-value="taxes_line.filtered(lambda tax: record.get_code_impuesto(tax.name) == '003' and tax.cfdi_tipofactor == 'Tasa' and tax.amount/100 &lt;= 0.31 and tax.amount/100 &gt; 0.266) "/>
+                                            <t t-if="taxes_line16EIPT">
+                                                  <t t-set="transferred" t-value="taxes_line30IEPST.filtered(lambda r: r.amount &gt; 0)"/>
+                                                  <t t-foreach="transferred" t-as="transfer">
+                                                    <t t-set="amount" t-value="transfer.amount"/>
+                                                    <t t-set="cfdi_tipofactor" t-value="transfer.cfdi_tipofactor"/>
+                                                    <t t-set="code_imp" t-value="record.get_code_impuesto(transfer.name)"/>
+                                                    <t t-set="total_transfer" t-value="total_transfer+(line.price_unit*(transfer.amount / 100.0))"/>
+                                                    <Traslado
+                                                      t-att-Importe="'%.2f' % total_transfer"
+                                                      t-att-Impuesto="code_imp"
+                                                      t-att-TipoFactor="cfdi_tipofactor"
+                                                      t-att-TasaOCuota="'%.6f' % (amount/100)"/>
+                                                  </t>
+                                           </t>
+
+                                           <t t-set="taxes_line50IEPST" t-value="taxes_line.filtered(lambda tax: record.get_code_impuesto(tax.name) == '003' and tax.cfdi_tipofactor == 'Tasa' and tax.amount/100 &lt;= 0.50 and tax.amount/100 &gt; 0.31) "/>
+                                            <t t-if="taxes_line16EIPT">
+                                                  <t t-set="transferred" t-value="taxes_line50IEPST.filtered(lambda r: r.amount &gt; 0)"/>
+                                                  <t t-foreach="transferred" t-as="transfer">
+                                                    <t t-set="amount" t-value="transfer.amount"/>
+                                                    <t t-set="cfdi_tipofactor" t-value="transfer.cfdi_tipofactor"/>
+                                                    <t t-set="code_imp" t-value="record.get_code_impuesto(transfer.name)"/>
+                                                    <t t-set="total_transfer" t-value="total_transfer+(line.price_unit*(transfer.amount / 100.0))"/>
+                                                    <Traslado
+                                                      t-att-Importe="'%.2f' % total_transfer"
+                                                      t-att-Impuesto="code_imp"
+                                                      t-att-TipoFactor="cfdi_tipofactor"
+                                                      t-att-TasaOCuota="'%.6f' % (amount/100)"/>
+                                                  </t>
+                                           </t>
+
                                        </t>
-                                       <Traslado
-                                          t-att-Importe="'%.2f' % total_transfer"
-                                          t-att-Impuesto="code_imp"
-                                          t-att-TipoFactor="cfdi_tipofactor"
-                                          t-att-TasaOCuota="'%.6f' % (amount/100)"/>
+                                       
                                   </Traslados>
                               </t>
                           </Impuestos>

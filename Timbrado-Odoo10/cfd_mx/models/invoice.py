@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from pytz import timezone, utc
 import threading
 import base64, json, requests
+from odoo.tools import float_is_zero, float_compare
 
 from lxml import etree
 from lxml.objectify import fromstring
@@ -866,6 +867,54 @@ class AccountInvoice(models.Model):
             return self.cfdi_timbre_id.action_verificacfdi()
         return True
 
+    def _get_invoice_payment_info_JSON(self):
+        if self.payment_move_line_ids:
+
+            info = []
+            currency_id = self.currency_id
+            for payment in self.payment_move_line_ids:
+                payment_currency_id = False
+                if self.type in ('out_invoice', 'in_refund'):
+                    amount = sum([p.amount for p in payment.matched_debit_ids if p.debit_move_id in self.move_id.line_ids])
+                    amount_currency = sum([p.amount_currency for p in payment.matched_debit_ids if p.debit_move_id in self.move_id.line_ids])
+                    if payment.matched_debit_ids:
+                        payment_currency_id = all([p.currency_id == payment.matched_debit_ids[0].currency_id for p in payment.matched_debit_ids]) and payment.matched_debit_ids[0].currency_id or False
+                        
+                elif self.type in ('in_invoice', 'out_refund'):
+                    raise UserError('Esta in out')
+                    amount = sum([p.amount for p in payment.matched_credit_ids if p.credit_move_id in self.move_id.line_ids])
+                    amount_currency = sum([p.amount_currency for p in payment.matched_credit_ids if p.credit_move_id in self.move_id.line_ids])
+                    if payment.matched_credit_ids:
+                        payment_currency_id = all([p.currency_id == payment.matched_credit_ids[0].currency_id for p in payment.matched_credit_ids]) and payment.matched_credit_ids[0].currency_id or False
+                # get the payment value in invoice currency
+                if payment_currency_id and payment_currency_id == self.currency_id:
+                    amount_to_show = amount_currency
+                else:                   
+                    amount_to_show = payment.company_id.currency_id.with_context(date=payment.date).compute(amount, self.currency_id)
+                if float_is_zero(amount_to_show, precision_rounding=self.currency_id.rounding):
+                    continue
+                payment_ref = payment.move_id.name
+                #raise UserError(payment.move_id.name+'  '+str(amount_to_show))
+                if payment.move_id.ref:
+                    payment_ref += ' (' + payment.move_id.ref + ')'
+                #raise UserError('Antes info')
+                #raise UserError(payment.name+'  '+payment.journal_id.name+'  '+str(amount_to_show)+'  '+currency_id.symbol+'  '+str([69, currency_id.decimal_places])+'  '+str(currency_id.position)+'  '+payment.date+'  '+str(payment.id)+'  '+str(payment.move_id.id))
+                info.append({
+                    'name': payment.name,
+                    'journal_name': payment.journal_id.name,
+                    'amount': amount_to_show,
+                    'currency': currency_id.symbol,
+                    'digits': [69, currency_id.decimal_places],
+                    'position': currency_id.position,
+                    'date': payment.date,
+                    'payment_id': payment.payment_id.id,
+                    #'payment_method_name': payment.payment_method_id.name if payment.journal_id.type == 'bank' else None,
+                    'move_id': payment.move_id.id,
+                    'ref': payment_ref,
+                })
+            return info
+ 
+
 
 
 class MailComposeMessage(models.TransientModel):
@@ -875,7 +924,7 @@ class MailComposeMessage(models.TransientModel):
     def onchange_template_id(self, template_id, composition_mode, model, res_id):
         """ - mass_mailing: we cannot render, so return the template values
             - normal mode: return rendered values
-            /!\ for x2many field, this onchange return command instead of ids
+            /!for x2many field, this onchange return command instead of ids
         """
         res = super(MailComposeMessage, self).onchange_template_id(template_id,
                 composition_mode, model, res_id)

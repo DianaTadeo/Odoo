@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<odoo>
+    <record model="ir.ui.view" id="view_account_payment_form_inh_cfd_mx">
+        <field name="name">view.account.payment.form.inh.cfd.mx</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="payment.view_account_payment_form_inherit_payment"/>
+        <field name="arch" type="xml">
+            <data>
+                <xpath expr="//field[@name='journal_id']" position="after">
+                    <field name="cfd_mx_payment_method_id"/>
+                </xpath>
+                <xpath expr="//field[@name='communication']" position="after">
+                    <label for="cfd_mx_pac_status" states="posted,sent,reconciled,cancelled" attrs="{'invisible': [('payment_type', '!=', 'inbound')]}"/>
+                    <div class="o_row" attrs="{'invisible': [('payment_type', '!=', 'inbound')]}">
+                        <field name="cfd_mx_pac_status"/>
+                        <button name="update_pac_status" string="Retry" class="oe_link" type="object" groups="account.group_account_invoice"
+                            attrs="{'invisible':[('cfd_mx_pac_status', 'in', ['none', 'signed', 'cancelled', False])]}"/>
+                        <button name="force_payment_complement" string="Force REP" class="oe_link" type="object" groups="account.group_account_invoice"
+                            help="It is not necessary generate the Electronic Payment Receipt (REP) for this payment, but It can be forced by pressing this button."
+                            />
+                    </div>
+                    <label for="cfd_mx_sat_status" states="posted,sent,reconciled,cancelled" attrs="{'invisible': [('payment_type', '!=', 'inbound')]}"/>
+                    <div class="o_row" attrs="{'invisible': [('payment_type', '!=', 'inbound')]}">
+                        <field name="cfd_mx_sat_status"/>
+                        <button name="update_sat_status" string="Retry" class="oe_link" type="object" groups="account.group_account_invoice"
+                            attrs="{'invisible':[('cfd_mx_sat_status', 'in', ['signed', 'cancelled'])]}"/>
+                    </div>
+                    <field name="cfd_mx_origin" attrs="{'invisible': [('payment_type', '!=', 'inbound')]}"/>
+                    <field name="cfd_mx_partner_bank_id" domain="['|', ('partner_id', '=', partner_id), ('partner_id', '=', False)]" context="{'default_partner_id': partner_id}"/>
+                </xpath>
+            </data>
+        </field>
+    </record>
+    
+</odoo>

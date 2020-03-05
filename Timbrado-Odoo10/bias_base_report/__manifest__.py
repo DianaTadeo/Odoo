@@ -18,10 +18,12 @@
     'data': [
         'data/report_data.xml',
         'data/cfdi.xml',
+        'data/3.3/payment10.xml',
         'report/report_menus.xml',
         'report/account_move.xml',
         'views/models_views.xml',
-        'views/wiz_report_xlsx_view.xml'
+        'views/account_payment_view.xml',
+        #'views/wiz_report_xlsx_view.xml'
     ],
     'installable': True,
 }
