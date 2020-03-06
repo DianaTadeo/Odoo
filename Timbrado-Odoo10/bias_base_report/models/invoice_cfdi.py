@@ -46,6 +46,23 @@ catcfdi = {
     'usoCdfi': ['G01','G02','G03','I01','I02','I03','I04','I05','I06','I07','I08','D01','D02','D03','D04','D05','D06','D07','D08','D09','D10','P01']
 }
 
+def get_format(xml):
+    xml = xml.replace("<Comprobante", "<cfdi:Comprobante   xsi:schemaLocation=\"http://www.sat.gob.mx/cfd/3  http://www.sat.gob.mx/sitio_internet/cfd/3/cfdv33.xsd\" xmlns:cfdi=\"http://www.sat.gob.mx/cfd/3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"")
+    xml = xml.replace("</Comprobante", "</cfdi:Comprobante")
+    xml = xml.replace("<Concepto", "<cfdi:Concepto")
+    xml = xml.replace("</Concepto", "</cfdi:Concepto")
+    xml = xml.replace("<Traslado", "<cfdi:Traslado")
+    xml = xml.replace("</Traslado", "</cfdi:Traslado")
+    xml = xml.replace("<Impuesto", "<cfdi:Impuesto")
+    xml = xml.replace("</Impuesto", "</cfdi:Impuesto")
+    xml = xml.replace("<Emisor", "<cfdi:Emisor")
+    xml = xml.replace("</Emisor", "</cfdi:Emisor")
+    xml = xml.replace("<Receptor", "<cfdi:Receptor")
+    xml = xml.replace("</Receptor", "</cfdi:Receptor")
+    xml = xml.replace("<CfdiRelacionado", "<cfdi:CfdiRelacionado")
+    xml = xml.replace("</CfdiRelacionado", "</cfdi:CfdiRelacionado")
+    return xml.replace("\n","")#.replace("  ", "")
+
 def create_list_html(array):
     '''Convert an array of string to a html list.
     :param array: A list of strings
@@ -213,57 +230,19 @@ class AccountCfdi(models.Model):
             'cfd': self.get_info_pac(),
             'db': self.db
         }
-        if hasattr(self, '%s_info_relacionados' % ctx['type']):
-            self.cfdi_datas['relacionados'] = getattr(self, '%s_info_relacionados' % ctx['type'])()
-
-        self.cfdi_datas['comprobante'] = getattr(self, '%s_info_comprobante' % ctx['type'])()
-        self.cfdi_datas['emisor'] = getattr(self, '%s_info_emisor' % ctx['type'])()
-        self.cfdi_datas['receptor'] = getattr(self, '%s_info_receptor' % ctx['type'])()
-        self.cfdi_datas['conceptos'] = getattr(self, '%s_info_conceptos' % ctx['type'])()
-        if ctx['type'] in ['invoice']:
-            self.cfdi_datas['impuestos'] = getattr(self, '%s_info_impuestos' % ctx['type'])(self.cfdi_datas['conceptos'])
-            self.cfdi_datas['addenda'] = self.obj.get_comprobante_addenda()
-        if ctx['type'] in ['pagos', 'nomina']:
-            self.cfdi_datas['complemento'] = getattr(self, '%s_info_complemento' % ctx['type'])()
-
-        if ctx['type'] in ['invoice']:
-            Subtotal = float(self.cfdi_datas['comprobante']['SubTotal'])
-            Descuento = float(self.cfdi_datas['comprobante']['Descuento'])
-            TotalImpuestosRetenidos , TotalImpuestosTrasladados = 0.0, 0.0
-
-            Subtotal = 0.0
-            for concepto in self.cfdi_datas.get('conceptos', []):
-                Subtotal += float( concepto.get('Importe', '0.0') )
-            self.cfdi_datas['comprobante']['Subtotal'] = '%.*f' % (decimal_precision, Subtotal)
-
-            if self.cfdi_datas.get('impuestos'):
-                TotalImpuestosRetenidos = float(self.cfdi_datas['impuestos']['TotalImpuestosRetenidos'])
-                TotalImpuestosTrasladados = float(self.cfdi_datas['impuestos']['TotalImpuestosTrasladados'])
-            Total = Subtotal - Descuento + TotalImpuestosTrasladados - TotalImpuestosRetenidos
-            self.cfdi_datas['comprobante']["Total"] = '%.*f' % (decimal_precision, Total)
-
-            if self.cfdi_datas.get('addenda'):
-                addenda = self.cfdi_datas['addenda'] and self.cfdi_datas['addenda'].get('addenda') or {}
-                if addenda and addenda.get('imploc_attribs'):
-                    total = float(self.cfdi_datas['comprobante']["Total"])
-                    TotaldeRetenciones = float(addenda['imploc_attribs'].get('TotaldeRetenciones', "0.0"))
-                    TotaldeTraslados = float(addenda['imploc_attribs'].get('TotaldeTraslados', "0.0"))
-                    total = total + TotaldeTraslados - TotaldeRetenciones
-                    self.cfdi_datas['comprobante']["Total"] = '%.*f' % (decimal_precision, total)
 
         datas = json.dumps(self.cfdi_datas, sort_keys=True, indent=4, separators=(',', ': '))
         
         logging.info(datas)
+        #raise UserError(datas)
         data= {'record': self}
         cfdi = qweb.render(CFDI_TEMPLATE, values= data)
-        cfdi = self.get_format(cfdi)
+        cfdi = get_format(cfdi)
         tree = fromstring(cfdi)
 
         fil= open('/tmp/prueba.xml', 'w')
         fil.write(cfdi)
         fil.close()
-
-        #Se cambia el atributo de FECHA al formato adecuado
         datetime_mx_tz = self._update_hour_timezone()
         time_invoice = datetime.strptime(datetime_mx_tz,
                                          DEFAULT_SERVER_TIME_FORMAT).time()
@@ -285,24 +264,6 @@ class AccountCfdi(models.Model):
             return "002"
         else:
             return "003"
-
-    def get_format(self, xml):
-        xml = xml.replace("<Comprobante", "<cfdi:Comprobante   xsi:schemaLocation=\"http://www.sat.gob.mx/cfd/3  http://www.sat.gob.mx/sitio_internet/cfd/3/cfdv33.xsd\" xmlns:cfdi=\"http://www.sat.gob.mx/cfd/3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"")
-	xml = xml.replace("</Comprobante", "</cfdi:Comprobante")
-        xml = xml.replace("<Concepto", "<cfdi:Concepto")
-        xml = xml.replace("</Concepto", "</cfdi:Concepto")
-        xml = xml.replace("<Traslado", "<cfdi:Traslado")
-        xml = xml.replace("</Traslado", "</cfdi:Traslado")
-        xml = xml.replace("<Impuesto", "<cfdi:Impuesto")
-        xml = xml.replace("</Impuesto", "</cfdi:Impuesto")
-        xml = xml.replace("<Emisor", "<cfdi:Emisor")
-        xml = xml.replace("</Emisor", "</cfdi:Emisor")
-        xml = xml.replace("<Receptor", "<cfdi:Receptor")
-        xml = xml.replace("</Receptor", "</cfdi:Receptor")
-        xml = xml.replace("<CfdiRelacionado", "<cfdi:CfdiRelacionado")
-        xml = xml.replace("</CfdiRelacionado", "</cfdi:CfdiRelacionado")
-        return xml #.replace("\n","").replace("  ", "")
-
  
     def get_info_pac(self):
         cfdi_datas = {
@@ -312,41 +273,14 @@ class AccountCfdi(models.Model):
         }
         return cfdi_datas
 
-    """
-    def action_server(self, url, host, db, params):
-        s = Session()
-        s.get('%s/web?db=%s'%(host, db))
-        headers = {
-            'Content-Type':'application/json',
-            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:27.0) Gecko/20100101 Firefox/27.0',
-            'Referer' : url
-        }
-        data = {
-            "jsonrpc": "2.0",
-            "method": "call",
-            "id":0,
-            "params": params
-        }
-        res = s.post(url, data=json.dumps(data), headers=headers)
-        res_datas = res.json()
-        raise UserError(base64.decodestring(res_datas.get('result').get('xml')))
-        msg = res_datas.get('error') and res_datas['error'].get('data') and res_datas['error']['data'].get('message')
-        if msg:
-            return res_datas['error']['data']
-        if res_datas.get('error'):
-            return res_datas['error']
-        if res_datas.get('result') and res_datas['result'].get('error'):
-            return res_datas['result']['error']
-        return res_datas
     
-    
-    """
     def get_process_data(self, obj, res):
+        '''Esta permite que el archivo PDF se imprima con los
+           valores del SAT una vez timbrada
+        '''
         context = dict(self._context) or {}
-        #res= base64.decodestring(res)
         
         fname = "cfd_%s.xml"%(obj.number or obj.name or '')
-        #raise UserError(res.CodEstatus)
         if context.get('type') and context.get('type') == 'pagos':
             fname = '%s.xml'% (res.UUID or obj.number or obj.name or '')
         # Adjuntos
@@ -364,22 +298,18 @@ class AccountCfdi(models.Model):
         attachment_obj.create(attachment_values)
         # Guarda datos:
         tree = fromstring(res.xml)
-        #raise UserError(tree.attrib['TipoCambio'])
         values = {
-            #'cadena': res.get('cadenaori', ''),
             'fecha_timbrado': res.Fecha,
             'sello_sat': res.SatSeal,
             'certificado_sat': res.NoCertificadoSAT,
             'sello': tree.attrib['NoCertificado'],
             'noCertificado': tree.attrib['NoCertificado'],
             'uuid': res.UUID,
-            #'qrcode': res.qr_img,
             'mensaje_pac': res.CodEstatus,
             'tipo_cambio': tree.attrib['TipoCambio'],
-            #'cadena_sat': res.get('cadena_sat')
         }
+
         obj.write(values)
-        #raise ValidationError(values)
         return True
 
     def get_cant_letra(self, currency, amount):
@@ -391,7 +321,6 @@ class AccountCfdi(models.Model):
             siglas = currency.name
         return amount_to_text().amount_to_text_cheque(float(amount), nombre,
                                                       siglas).capitalize()
-
 
     def action_raise_message(self, message):
         self.ensure_one()
@@ -401,123 +330,12 @@ class AccountCfdi(models.Model):
         if not context.get('batch', False):
             if len(message) != 0:
                 message = message.replace('<li>', '').replace('</li>', '\n')
-                # self.message_post(body=message)
+                self.message_post(body=message)
                 raise UserError(message)
         else:
             self.mensaje_validar += message
         return True
-    """
-    def valida_catcfdi(self, cat, value):
-        res = False
-        if catcfdi.get(cat, False):
-            if value in catcfdi[cat]:
-                res = True
-        return res
-
-    def _get_folio(self):
-        return str(self.id).zfill(6)
-
-    def get_info_sat(self, splitme, swidth):
-        pp = textwrap.wrap(splitme, width=int(swidth))
-        export_text = ""
-        for p in pp:
-            export_text += p + '\n'
-        return export_text
-
-    def get_cant_letra(self, currency, amount):
-        if currency.name == 'MXN':
-            nombre = currency.nombre_largo or 'pesos'
-            siglas = 'M.N.'
-        else:
-            nombre = currency.nombre_largo or ''
-            siglas = currency.name
-        return amount_to_text().amount_to_text_cheque(float(amount), nombre,
-                                                      siglas).capitalize()
-
-
-    def convert_datetime_timezone(self, dt, tz1, tz2):
-        tz1 = timezone(tz1)
-        tz2 = timezone(tz2)
-        dt = datetime.strptime(dt,"%Y-%m-%d %H:%M:%S")
-        dt = tz1.localize(dt)
-        dt = dt.astimezone(tz2)
-        dt = dt.strftime("%Y-%m-%dT%H:%M:%S")
-        return dt
-
-
-    # Cancelar
-    def cancel(self, obj):
-        cia = obj.company_id
-        self.get_datas(obj, cia)
-
-        url = '%s/cancel/'%(self.host)
-        if self.port:
-            url = '%s:%s/cancel/'%(self.host, self.port)
-        cfdi_datas = {
-            'db': self.db,
-            'uuid': self.obj.uuid,
-            'vat': cia.partner_id.vat,
-            'test': cia.cfd_mx_test,
-            'cfd': self.get_info_pac(),
-            'noCertificado': self.obj.noCertificado
-        }
-        self.datas = json.dumps(cfdi_datas, sort_keys=True, indent=4, separators=(',', ': '))
-        params = {"context": {},  "post":  self.datas}
-        res_datas =  self.action_server(url, self.host, self.db, params)
-        return res_datas
-
-
-    def validate(self, obj):
-        cia = obj.company_id
-        host = cia.cfd_mx_host
-        url = '%s/validate/'%(host)
-        port = cia.cfd_mx_port
-        db = cia.cfd_mx_db
-        # if port:
-        #     url = '%s:%s/validate/'%(host, port)
-        cfdi_datas = {
-            'db': db,
-            'xml': obj.xml,
-            'vat': cia.partner_id.vat,
-            'test': cia.cfd_mx_test,
-            'cfd': {
-                'test': cia.cfd_mx_test,
-                'pac': cia.cfd_mx_pac,
-                'version': cia.cfd_mx_version
-            }
-        }
-        datas = json.dumps(cfdi_datas, sort_keys=True, indent=4, separators=(',', ': '))
-        params = {"context": {},  "post":  datas}
-        res_datas =  self.action_server(url, host, db, params)
-        return res_datas
-
-
-    def contabilidad(self, obj):
-        context = dict(self._context)
-        cia = obj.company_id
-        host = cia.cfd_mx_host
-        url = '%s/contabilidad/'%(host)
-        port = cia.cfd_mx_port
-        db = cia.cfd_mx_db
-        # if port:
-        #     url = '%s:%s/validate/'%(host, port)
-        cfdi_datas = {
-            'db': db,
-            'xml': context,
-            'vat': cia.partner_id.vat,
-            'test': cia.cfd_mx_test,
-            'cfd': {
-                'test': cia.cfd_mx_test,
-                'pac': cia.cfd_mx_pac,
-                'version': cia.cfd_mx_version
-            }
-        }
-        datas = json.dumps(cfdi_datas, sort_keys=True, indent=4, separators=(',', ': '))
-        params = {"context": {},  "post":  datas}
-        res_datas =  self.action_server(url, host, db, params)
-        return res_datas
-    """
-
+    
     @staticmethod
     def _get_serie_and_folio(number):
         values = {'serie': None, 'folio': None}
@@ -557,31 +375,23 @@ class AccountCfdi(models.Model):
 
         for inv in self:
             cfdi = base64.decodestring(inv.cfdi_xml)
-            #raise UserError(username+" " + password+ ": " +url)
             try:
                 transport = Transport(timeout=20)
                 client = Client(url, transport=transport)
                 response = client.service.stamp(cfdi, username, password)
             except Exception as e:
-                raise UserError(e)
-                #inv.l10n_mx_edi_log_error(str(e))
-                #continue
+                self.message_post(e)
+                continue
             code = 0
             msg = None
             if response.Incidencias:
                 code = getattr(response.Incidencias.Incidencia[0], 'CodigoError', None)
                 msg = getattr(response.Incidencias.Incidencia[0], 'MensajeIncidencia', None)
+                self.message_post('Código de error: '+code+' - 'msg)
             xml_signed = getattr(response, 'xml', None)
-            #raise UserError(response)
 
-            
             if xml_signed:
                 xml_signed = base64.b64encode(xml_signed.encode('utf-8'))
-            #inv._post_sign_process(xml_signed, code, msg)
-            #fil= open('/tmp/prueba_signed.xml', 'w')
-            #fil.write(xml_signed)
-            #fil.close()
-            #raise #UserError(response)
             return response
 
 
@@ -644,7 +454,7 @@ class AccountCfdi(models.Model):
             self.pac_status = 'signed'
             self.cfdi_signed = xml_signed
             # Update the content of the attachment
-            #attachment_id = self.retrieve_last_attachment()
+            attachment_id = self.retrieve_last_attachment()
 
             ctx = self.env.context.copy()
 
@@ -675,11 +485,6 @@ class AccountCfdi(models.Model):
         if msg:
             raise UserError('error?????MENSAJE')
             post_msg.extend([_('Message: %s') % msg])
-            
-        #self.message_post(
-        #   body=body_msg + post_msg,
-        #    subtype='account.mt_invoice_validated')
-        raise UserError(body_msg+ ":---" +post_msg)
     
 
     def _post_cancel_process(self, cancelled, code=None, msg=None):
@@ -722,19 +527,12 @@ class AccountCfdi(models.Model):
             ('name', '=', self.cfdi_name)]
         
         obj = self.env['ir.attachment'].search(domain)
-        raise UserError(obj)
+        #raise UserError(obj)
 
     @api.model 
     def retrieve_last_attachment(self):
         attachment_ids = self.retrieve_attachments()
         return attachment_ids and attachment_ids[0] or None
-    """   
-    def _compute_checksum(self, bin_data):
-        compute the checksum for the given datas
-            :param bin_data : datas in its binary form
-                # an empty file has a checksum too (for caching)
-       return hashlib.sha1(bin_data or b'').hexdigest()
-    """
 
     ############### TRATAMIENTO DE CERTIFICADO ############
 
@@ -872,39 +670,147 @@ class AccountCfdi(models.Model):
         return datetime_mx_tz.strftime("%H:%M:%S")
 
 
-def _get_reconciled_payments(self):
+    def _get_reconciled_payments(self):
         """Helper used to retrieve the reconciled payments on this journal entry"""
         pay_term_line_ids = self.line_ids.filtered(lambda line: line.account_id.user_type_id.type in ('receivable', 'payable'))
         reconciled_amls = pay_term_line_ids.mapped('matched_debit_ids.debit_move_id') + \
                           pay_term_line_ids.mapped('matched_credit_ids.credit_move_id')
         return reconciled_amls.mapped('payment_id')
 
+    def total_impuestos(self, tipo):
+        total_t = 0
+        total_w = 0
+        for line in self.invoice_line_ids.filtered('price_subtotal'):
+            price = line.price_unit * (1.0 - (line.discount or 0.0) / 100.0)
+            tax_line = {tax['id']: tax for tax in line.invoice_line_tax_ids.compute_all(
+                price, line.currency_id, line.quantity, line.product_id, line.partner_id)['taxes']}
+            for tax in line.invoice_line_tax_ids.filtered(lambda r: r.cfdi_tax_type != 'Exento'):
+                tax_dict = tax_line.get(tax.id, {})
+                amount = round(abs(tax_dict.get(
+                    'amount', tax.amount / 100 * float("%.2f" % line.price_subtotal))), 2)
+                rate = round(abs(tax.amount), 2)
+                if tax.amount >= 0 and tipo=='transferred':
+                    total_t += amount
+                if tax.amount < 0 and tipo=='withhold':
+                    total_w += amount
+        if tipo=='transferred':
+            return total_t
+        else:
+            return total_w
 
+    def create_taxes_cfdi(self):
+        '''Create the taxes values to fill the CFDI template.
+        '''
+        self.ensure_one()
+        values = {
+            'withholding': [],
+            'transferred': [],
+        }
+        taxes = {}
+        for line in self.invoice_line_ids.filtered('price_subtotal'):
+            price = line.price_unit * (1.0 - (line.discount or 0.0) / 100.0)
+            tax_line = {tax['id']: tax for tax in line.invoice_line_tax_ids.compute_all(
+                price, line.currency_id, line.quantity, line.product_id, line.partner_id)['taxes']}
+            for tax in line.invoice_line_tax_ids.filtered(lambda r: r.cfdi_tax_type != 'Exento'):
+                tax_dict = tax_line.get(tax.id, {})
+                amount = round(abs(tax_dict.get(
+                    'amount', tax.amount / 100 * float("%.2f" % line.price_subtotal))), 2)
+                rate = round(abs(tax.amount), 2)
+                if tax.id not in taxes:
+                    taxes.update({tax.id: {
+                        'name': (tax.tag_ids[0].name
+                                 if tax.mapped('tag_ids') else tax.name).upper(),
+                        'amount': amount,
+                        'rate': rate if tax.amount_type == 'fixed' else rate / 100.0,
+                        'type': tax.cfdi_tipofactor,
+                        'tax_amount': tax_dict.get('amount', tax.amount),
+                    }})
+                else:
+                    taxes[tax.id].update({
+                        'amount': taxes[tax.id]['amount'] + amount
+                    })
+        values['transferred'] = [tax for tax in taxes.values() if tax['tax_amount'] >= 0]
+        values['withholding'] = self._group_withholding(
+            [tax for tax in taxes.values() if tax['tax_amount'] < 0])
+        return values
 
-"""
+    def _group_withholding(self, withholding):
+        """In the Taxes node the withholding must be group by tax type"""
+        if not withholding:
+            return withholding
+        new_withholding = {}
+        for tax in withholding:
+            if tax['name'] not in new_withholding:
+                new_withholding.update({tax['name']: tax})
+                continue
+            new_withholding[tax['name']].update({'amount': new_withholding[
+                tax['name']]['amount'] + tax['amount']})
+        return list(new_withholding.values())
 
-class MetodoPago(models.Model):
-    _name = "cfd_mx.metodopago"
+    """
+    def _l10n_mx_edi_create_cfdi_values(self):
+        '''Create the values to fill the CFDI template.
+        '''
+        self.ensure_one()
+        partner_id = self.partner_id
+        if self.partner_id.type != 'invoice':
+            partner_id = self.partner_id.commercial_partner_id
+        values = {
+            'record': self,
+            'currency_name': self.currency_id.name,
+            'supplier': self.company_id.partner_id.commercial_partner_id,
+            'issued': self.journal_id.l10n_mx_address_issued_id,
+            'customer': partner_id,
+            'fiscal_regime': self.company_id.l10n_mx_edi_fiscal_regime,
+            'payment_method': self.l10n_mx_edi_payment_method_id.code,
+            'use_cfdi': self.l10n_mx_edi_usage,
+            'conditions': self._get_string_cfdi(
+                self.invoice_payment_term_id.name, 1000) if self.invoice_payment_term_id else False,
+        }
 
-    name = fields.Char("Descripcion", size=128, required=True, default="")
-    clave = fields.Char(string="Clave", help="Clave del Catálogo del SAT")
+        values.update(self._l10n_mx_get_serie_and_folio(self.name))
+        ctx = dict(company_id=self.company_id.id, date=self.invoice_date)
+        mxn = self.env.ref('base.MXN').with_context(ctx)
+        invoice_currency = self.currency_id.with_context(ctx)
+        values['rate'] = ('%.6f' % (
+            invoice_currency._convert(1, mxn, self.company_id, self.invoice_date or fields.Date.today(), round=False))) if self.currency_id.name != 'MXN' else False
 
-    @api.multi
-    def name_get(self):
-        result = []
-        for rec in self:
-            result.append((rec.id, "[%s] %s" % (rec.clave, rec.name or '')))
-        return result
+        values['document_type'] = 'ingreso' if self.type == 'out_invoice' else 'egreso'
+        values['payment_policy'] = self._l10n_mx_edi_get_payment_policy()
+        domicile = self.journal_id.l10n_mx_address_issued_id or self.company_id
+        values['domicile'] = '%s %s, %s' % (
+                domicile.city,
+                domicile.state_id.name,
+                domicile.country_id.name,
+        )
 
-    @api.model
-    def name_search(self, name, args=None, operator='ilike', limit=100):
-        recs = super(MetodoPago, self).name_search(name, args=args, operator=operator, limit=limit)
-        args = args or []
-        recs = self.browse()
-        if name:
-            recs = self.search([('clave', operator, name)] + args, limit=limit)
-        if not recs:
-            recs = self.search([('name', operator, name)] + args, limit=limit)
-        return recs.name_get()
+        values['decimal_precision'] = precision_digits
+        subtotal_wo_discount = lambda l: float_round(
+            l.price_subtotal / (1 - l.discount/100) if l.discount != 100 else
+            l.price_unit * l.quantity, int(precision_digits))
+        values['subtotal_wo_discount'] = subtotal_wo_discount
+        get_discount = lambda l, d: ('%.*f' % (
+            int(d), subtotal_wo_discount(l) - l.price_subtotal)) if l.discount else False
+        values['total_discount'] = get_discount
+        total_discount = sum([float(get_discount(p, precision_digits)) for p in self.invoice_line_ids])
+        values['amount_untaxed'] = '%.*f' % (
+            precision_digits, sum([subtotal_wo_discount(p) for p in self.invoice_line_ids]))
+        values['amount_discount'] = '%.*f' % (precision_digits, total_discount) if total_discount else None
 
-"""
+        values['taxes'] = self._l10n_mx_edi_create_taxes_cfdi_values()
+        values['amount_total'] = '%0.*f' % (precision_digits,
+            float(values['amount_untaxed']) - float(values['amount_discount'] or 0) + (
+                values['taxes']['total_transferred'] or 0) - (values['taxes']['total_withhold'] or 0))
+
+        values['tax_name'] = lambda t: {'ISR': '001', 'IVA': '002', 'IEPS': '003'}.get(t, False)
+
+        if self.l10n_mx_edi_partner_bank_id:
+            digits = [s for s in self.l10n_mx_edi_partner_bank_id.acc_number if s.isdigit()]
+            acc_4number = ''.join(digits)[-4:]
+            values['account_4num'] = acc_4number if len(acc_4number) == 4 else None
+        else:
+            values['account_4num'] = None
+
+        values.update(self._get_external_trade_values(values))
+        return values
+    """

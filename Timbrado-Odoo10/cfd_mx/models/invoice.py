@@ -455,14 +455,14 @@ class AccountInvoice(models.Model):
             if res.Incidencias:
                 message = res.Incidencias.Incidencia[0]
             else:
-                #self.get_process_data(self, res)
+                self.get_process_data(self, res)
                 self.get_process_data_xml(res)####Se crea el archivo 
         except ValueError, e:
             message = str(e)
         except Exception, e:
             message = str(e)
         if message:
-            raise UserError(message)
+            self.message_post(body=message)
             #message = message.replace("(u'", "").replace("', '')", "")
             #self.with_context(**context).action_raise_message("Error al Generar el XML \n\n %s "%( message.upper() ))
             #return False
@@ -482,11 +482,9 @@ class AccountInvoice(models.Model):
 
 
     def get_process_data(self, obj, res):
-        
-        #raise ValidationError(values)
         return True
 
-    def get_process_data_xml(self, res):
+    def get_process_data_xml(self, res): 
         Currency = self.env['res.currency']
         attachment_obj = self.env['ir.attachment']
         Timbre = self.env['cfdi.timbres.sat']
@@ -516,14 +514,9 @@ class AccountInvoice(models.Model):
             'test': self.company_id.cfd_mx_test
         })
 
-        
-
         if timbre_id:
-            ##########
-
             context = dict(self._context) or {}
             fname = "cfd_%s.xml"%(self.number or self.name or '')
-        
             if context.get('type') and context.get('type') == 'pagos':
                 fname = '%s.xml'% (res.UUID or self.number or self.name or '')
             # Adjuntos
@@ -553,7 +546,7 @@ class AccountInvoice(models.Model):
                 #'qrcode': res.qr_img,
                 'mensaje_pac': res.CodEstatus,
                 'tipo_cambio': tree.attrib['TipoCambio'],
-                #'cadena_sat': res.get('cadena_sat')
+                #'cadena_sat': res.cadena_sat
             }
             self.write(values)
             
@@ -635,7 +628,7 @@ class AccountInvoice(models.Model):
     def msg_batch(self, msg):
         context = dict(self._context)
         if not context.get('batch', False):
-            raise UserError( msg )
+            self.message_post(body=msg)
         else:
             self.message_post(body='<ul><li> %s </li></ul>'%msg, subtype='account.mt_invoice_validated' )
         return True
@@ -806,7 +799,7 @@ class AccountInvoice(models.Model):
         except Exception, e:
             message = str(e)
         if message:
-            raise UserError(message)
+            self.message_post(body=message)
         if not res:
             return True
         if res.get('Estado', '') == 'Cancelado':

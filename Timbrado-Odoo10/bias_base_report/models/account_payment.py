@@ -371,7 +371,7 @@ class AccountPayment(models.Model):
             cfdi_values = rec._create_cfdi_payment()
             error = cfdi_values.pop('error', None)
             cfdi = cfdi_values.pop('cfdi', None)
-            cfdi=etree.tostring(cfdi)
+
             if error:
                 # cfdi failed to be generated
                 rec.cfd_mx_pac_status = 'retry'
@@ -386,18 +386,13 @@ class AccountPayment(models.Model):
             ctx = self.env.context.copy()
             ctx.pop('default_type', False)
             rec.cfd_mx_cfdi_name = filename
-            attachment_obj = obj.env['ir.attachment']
-            attachment_values = {
+            attachment_id = self.env['ir.attachment'].with_context(ctx).create({
                 'name': filename,
-                'datas': base64.encodestring(cfdi),
-                'datas_fname': filename,
-                'description': 'Mexican CFDI to payment',
-                'res_model': rec._name,
                 'res_id': rec.id,
-                'mimetype': 'application/xml',
-                'type': 'binary'
-            }
-            attachment_obj.create(attachment_values)
+                'res_model': rec._name,
+                'datas': base64.encodestring(cfdi),
+                'description': _('Mexican CFDI to payment'),
+                })
             #rec.message_post(
             #    body=_('CFDI document generated (may be not signed)'),
             #    attachment_ids=[attachment_id.id])

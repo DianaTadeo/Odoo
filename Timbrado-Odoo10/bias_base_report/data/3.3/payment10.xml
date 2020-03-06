@@ -14,7 +14,7 @@
             Total="0"
             TipoDeComprobante="P"
             t-att-LugarExpedicion="issued.zip or supplier.zip"
-            t-att-Confirmacion="ECVH1">
+            t-att-Confirmacion="0">
             <t t-set="related" t-value="record.get_cfdi_related()"/>
             <t t-if="related">
                 <CfdiRelacionados
