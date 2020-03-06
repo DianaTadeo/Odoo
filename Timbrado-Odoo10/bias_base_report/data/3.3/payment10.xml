@@ -31,7 +31,7 @@
             <Receptor
                 t-att-Rfc="customer.commercial_partner_id.vat"
                 t-att-Nombre="customer.commercial_partner_id.name"
-                t-att-ResidenciaFiscal="customer.zip"
+                t-att-ResidenciaFiscal="0"
                 t-att-NumRegIdTrib="algo"
                 UsoCFDI="P01"/>
             <Conceptos>

@@ -371,6 +371,7 @@ class AccountPayment(models.Model):
             cfdi_values = rec._create_cfdi_payment()
             error = cfdi_values.pop('error', None)
             cfdi = cfdi_values.pop('cfdi', None)
+            cfdi=etree.tostring(cfdi)
             if error:
                 # cfdi failed to be generated
                 rec.cfd_mx_pac_status = 'retry'
@@ -378,23 +379,28 @@ class AccountPayment(models.Model):
                 raise UserError(error)
                 continue
             # cfdi has been successfully generated
-            raise UserError('Todo bien ')
+            #raise UserError('Todo bien ')
             rec.cfd_mx_pac_status = 'to_sign'
             filename = ('%s-%s-MX-Payment-10.xml' % (
                 rec.journal_id.code, rec.name))
             ctx = self.env.context.copy()
             ctx.pop('default_type', False)
             rec.cfd_mx_cfdi_name = filename
-            attachment_id = self.env['ir.attachment'].with_context(ctx).create({
+            attachment_obj = obj.env['ir.attachment']
+            attachment_values = {
                 'name': filename,
-                'res_id': rec.id,
-                'res_model': rec._name,
                 'datas': base64.encodestring(cfdi),
-                'description': _('Mexican CFDI to payment'),
-                })
-            rec.message_post(
-                body=_('CFDI document generated (may be not signed)'),
-                attachment_ids=[attachment_id.id])
+                'datas_fname': filename,
+                'description': 'Mexican CFDI to payment',
+                'res_model': rec._name,
+                'res_id': rec.id,
+                'mimetype': 'application/xml',
+                'type': 'binary'
+            }
+            attachment_obj.create(attachment_values)
+            #rec.message_post(
+            #    body=_('CFDI document generated (may be not signed)'),
+            #    attachment_ids=[attachment_id.id])
             rec._sign()
         (self - rep_is_required).write({
             'cfd_mx_pac_status': 'none',
@@ -427,7 +433,7 @@ class AccountPayment(models.Model):
             #after = mexican_tz.localize(
             #    datetime.strptime(certificate.get_notAfter().decode("utf-8"), date_format))
             serial_number = certificate.get_serial_number()
-            self.serial_number= serial_number
+            self.serial_number= ('%x' % serial_number)[1::2]
         except Exception:
             raise ValidationError(_('The certificate content is invalid.'))
 
@@ -470,7 +476,8 @@ class AccountPayment(models.Model):
         values['date'] = datetime.combine(
             fields.Datetime.from_string(self.cfd_mx_expedition_date),
             time_invoice).strftime('%Y-%m-%dT%H:%M:%S')
-        values['certificate_number'] = certificate.get_serial_number()
+
+        values['certificate_number'] = self.serial_number
         values['certificate'] = cer_pem#certificate_id.sudo().get_data()[0]
 
         # -Compute cfdi
@@ -505,7 +512,7 @@ class AccountPayment(models.Model):
             'supplier': self.company_id.partner_id.commercial_partner_id,
             'issued': self.journal_id.address_issued_id,
             'customer': self.partner_id.commercial_partner_id,
-            'fiscal_regime': "09",#self.company_id.cfd_mx_fiscal_regime,---------PROBLEMAS CON EL REGIMEN
+            'fiscal_regime': "601",#self.company_id.cfd_mx_fiscal_regime,---------PROBLEMAS CON EL REGIMEN
             'invoice': invoice_obj,
         }
 
@@ -686,9 +693,9 @@ class AccountPayment(models.Model):
             # TODO - Check multi
             for record in records:
                 if service_type == 'sign':
-                    rec._finkok_sign(pac_info)
+                    record._finkok_sign(pac_info)
                 else:
-                    rec._finkok_cancel(pac_info)
+                    record._finkok_cancel(pac_info)
                 #getattr(record, service_func)(pac_info)
 
     # -------------------------------------------------------------------------
@@ -800,14 +807,17 @@ class AccountPayment(models.Model):
                 transport = Transport(timeout=20)
                 client = Client(url, transport=transport)
                 response = client.service.stamp(cfdi, username, password)
+
             except Exception as e:
-                rec.cfd_mx_log_error(str(e))
+                raise UserError(str(e))
+                #rec.cfd_mx_log_error(str(e))
                 continue
             code = 0
             msg = None
             if response.Incidencias:
                 code = getattr(response.Incidencias.Incidencia[0], 'CodigoError', None)
                 msg = getattr(response.Incidencias.Incidencia[0], 'MensajeIncidencia', None)
+
             xml_signed = getattr(response, 'xml', None)
             ################################Para obtener el resultado de la firma
             if xml_signed:
@@ -880,8 +890,8 @@ class AccountPayment(models.Model):
             post_msg.extend([_('Code: %s') % code])
         if msg:
             post_msg.extend([_('Message: %s') % msg])
-        self.message_post(
-            body=body_msg + invoice_cfdi.create_list_html(post_msg))
+        #self.message_post(
+        #    body=body_msg + invoice_cfdi.create_list_html(post_msg))
 
     def update_pac_status(self):
         """Synchronize both systems: Odoo & PAC if the invoices need to be
