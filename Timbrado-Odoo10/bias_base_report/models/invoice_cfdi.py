@@ -177,7 +177,7 @@ class AccountCfdi(models.Model):
     cadena_sat = fields.Text(string="Cadena SAT", copy=False)
     cadena_sat_wrap = fields.Text(string="Cadena SAT", copy=False, compute="_get_cadena_sat_wrap")
     mensaje_timbrado_pac = fields.Text('Mensaje del PAC', copy=False, default="")
-    mensaje_pac =  fields.Html(string='Ultimo mensaje del PAC', copy=False, default="")
+    mensaje_pac = fields.Html(string='Ultimo mensaje del PAC', copy=False, default="")
     mensaje_validar = fields.Text(string='Mensaje Validacion', copy=False, default="")
     cant_letra = fields.Char(string="Cantidad con letra", copy=False, compute='_compute_cant_letra')
     cfdi_xml = fields.Binary(string="Contenido del CFDI", copy=False, readonly=True, help="CFDI en xml codificado en base 64")
@@ -237,7 +237,6 @@ class AccountCfdi(models.Model):
         #raise UserError(datas)
         data= {'record': self}
         cfdi = qweb.render(CFDI_TEMPLATE, values= data)
-        raise UserError(cfdi)
         cfdi = get_format(cfdi)
         tree = fromstring(cfdi)
 
@@ -404,6 +403,8 @@ class AccountCfdi(models.Model):
         password = pac_info['password']
         for inv in self:
             uuid = inv.uuid
+            #certificate = inv.company_id.cer
+            #certificate_id = certificate_ids.sudo().get_valid_certificate()
             company_id = self.company_id
             cer_pem = self.get_pem_cer(
                 inv.company_id.cfd_mx_cer)
@@ -411,6 +412,7 @@ class AccountCfdi(models.Model):
                 inv.company_id.cfd_mx_key, inv.company_id.cfd_mx_key_password)
             cancelled = False
             code = False
+            #raise UserError(inv.company_id.cfd_mx_key_password+ ' --- '+ base64.b64encode(cer_pem)+ '---------' +base64.b64encode(key_pem))
             try:
                 transport = Transport(timeout=20)
                 client = Client(url, transport=transport)
@@ -465,6 +467,12 @@ class AccountCfdi(models.Model):
                 'description': 'FACTURA',
                 'mimetype': 'application/xml'
                 })
+            #raise UserError('Se creo attachment')
+            #attachment_id.write({
+            #    'datas': xml_signed,
+            #    'mimetype': 'application/xml'
+            #})
+            #xml_signed = self.l10n_mx_edi_append_addenda(xml_signed)
             post_msg = [_('The content of the attachment has been updated')]
 
         else:
@@ -738,3 +746,71 @@ class AccountCfdi(models.Model):
             new_withholding[tax['name']].update({'amount': new_withholding[
                 tax['name']]['amount'] + tax['amount']})
         return list(new_withholding.values())
+
+    """
+    def _l10n_mx_edi_create_cfdi_values(self):
+        '''Create the values to fill the CFDI template.
+        '''
+        self.ensure_one()
+        partner_id = self.partner_id
+        if self.partner_id.type != 'invoice':
+            partner_id = self.partner_id.commercial_partner_id
+        values = {
+            'record': self,
+            'currency_name': self.currency_id.name,
+            'supplier': self.company_id.partner_id.commercial_partner_id,
+            'issued': self.journal_id.l10n_mx_address_issued_id,
+            'customer': partner_id,
+            'fiscal_regime': self.company_id.l10n_mx_edi_fiscal_regime,
+            'payment_method': self.l10n_mx_edi_payment_method_id.code,
+            'use_cfdi': self.l10n_mx_edi_usage,
+            'conditions': self._get_string_cfdi(
+                self.invoice_payment_term_id.name, 1000) if self.invoice_payment_term_id else False,
+        }
+
+        values.update(self._l10n_mx_get_serie_and_folio(self.name))
+        ctx = dict(company_id=self.company_id.id, date=self.invoice_date)
+        mxn = self.env.ref('base.MXN').with_context(ctx)
+        invoice_currency = self.currency_id.with_context(ctx)
+        values['rate'] = ('%.6f' % (
+            invoice_currency._convert(1, mxn, self.company_id, self.invoice_date or fields.Date.today(), round=False))) if self.currency_id.name != 'MXN' else False
+
+        values['document_type'] = 'ingreso' if self.type == 'out_invoice' else 'egreso'
+        values['payment_policy'] = self._l10n_mx_edi_get_payment_policy()
+        domicile = self.journal_id.l10n_mx_address_issued_id or self.company_id
+        values['domicile'] = '%s %s, %s' % (
+                domicile.city,
+                domicile.state_id.name,
+                domicile.country_id.name,
+        )
+
+        values['decimal_precision'] = precision_digits
+        subtotal_wo_discount = lambda l: float_round(
+            l.price_subtotal / (1 - l.discount/100) if l.discount != 100 else
+            l.price_unit * l.quantity, int(precision_digits))
+        values['subtotal_wo_discount'] = subtotal_wo_discount
+        get_discount = lambda l, d: ('%.*f' % (
+            int(d), subtotal_wo_discount(l) - l.price_subtotal)) if l.discount else False
+        values['total_discount'] = get_discount
+        total_discount = sum([float(get_discount(p, precision_digits)) for p in self.invoice_line_ids])
+        values['amount_untaxed'] = '%.*f' % (
+            precision_digits, sum([subtotal_wo_discount(p) for p in self.invoice_line_ids]))
+        values['amount_discount'] = '%.*f' % (precision_digits, total_discount) if total_discount else None
+
+        values['taxes'] = self._l10n_mx_edi_create_taxes_cfdi_values()
+        values['amount_total'] = '%0.*f' % (precision_digits,
+            float(values['amount_untaxed']) - float(values['amount_discount'] or 0) + (
+                values['taxes']['total_transferred'] or 0) - (values['taxes']['total_withhold'] or 0))
+
+        values['tax_name'] = lambda t: {'ISR': '001', 'IVA': '002', 'IEPS': '003'}.get(t, False)
+
+        if self.l10n_mx_edi_partner_bank_id:
+            digits = [s for s in self.l10n_mx_edi_partner_bank_id.acc_number if s.isdigit()]
+            acc_4number = ''.join(digits)[-4:]
+            values['account_4num'] = acc_4number if len(acc_4number) == 4 else None
+        else:
+            values['account_4num'] = None
+
+        values.update(self._get_external_trade_values(values))
+        return values
+    """

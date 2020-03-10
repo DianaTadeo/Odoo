@@ -34,6 +34,8 @@
                                 <field name="cfd_mx_key_password" />
                             </group>
                             <group string="General" name="cfdi_general">
+
+                                <field name="cfd_mx_fiscal_regime" />
                                 <field name="reason_cancel_invoice" />
                             </group>
                         </group>

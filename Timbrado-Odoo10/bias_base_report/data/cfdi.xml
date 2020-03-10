@@ -34,7 +34,7 @@
                     <Emisor
                         t-att-Rfc="record.company_id.vat"
                         t-att-Nombre="record.company_id.name"
-                        t-att-RegimenFiscal="record.company_id.regimen_id.clave"/>
+                        t-att-RegimenFiscal="record.company_id.cfd_mx_fiscal_regime"/>
                     <Receptor
                         t-att-Rfc="record.partner_id.vat"
                         t-att-Nombre="record.partner_id.name"

@@ -73,7 +73,7 @@ class company(models.Model):
          ('630', 'Enajenación de acciones en bolsa de valores')],
         string="Fiscal Regime",
         help="It is used to fill Mexican XML CFDI required field "
-        "Comprobante.Emisor.RegimenFiscal.")
+        "Comprobante.Emisor.RegimenFiscal.", required=False,)
 
     @api.multi
     def action_ws_finkok_sat(self, service='', cfdi_params={}):
