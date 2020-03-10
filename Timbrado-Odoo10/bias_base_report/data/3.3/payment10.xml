@@ -4,7 +4,7 @@
         <Comprobante
             Version="3.3"
             t-att-Fecha="date"
-            t-att-Folio="record.name[12:"
+            t-att-Folio="record.name[12:]"
             t-att-Serie="record.name[:11]"
             Sello=""
             t-att-NoCertificado="certificate_number"

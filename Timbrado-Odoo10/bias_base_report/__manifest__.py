@@ -13,7 +13,7 @@
         'python': ['xlsxwriter']
     },
     'depends': [
-        'sale', 'purchase', 'account', 'report'
+        'base', 'sale', 'purchase', 'account', 'report'
     ],
     'data': [
         'data/report_data.xml',

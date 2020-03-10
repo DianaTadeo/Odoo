@@ -70,7 +70,7 @@ def get_format(xml):
 
 class AccountPayment(models.Model):
     _name = 'account.payment'
-    _inherit = ['account.payment']
+    _inherit = ['account.payment', 'mail.thread']
 
     cfd_mx_pac_status = fields.Selection(
         selection=[
