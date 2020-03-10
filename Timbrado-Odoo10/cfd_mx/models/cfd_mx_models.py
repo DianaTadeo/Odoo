@@ -1133,3 +1133,40 @@ class ResCurrency(models.Model):
         return to_currency.rate / from_currency.rate
 
     """
+
+class AccountPayment(models.Model):
+    _name = 'account.payment'
+    _inherit = ['account.payment']
+
+    def _get_invoice_payment_amount(self, inv):
+        """
+        Computes the amount covered by the current payment in the given invoice.
+
+        :param inv: an invoice object
+        :returns: the amount covered by the payment in the invoice
+        """
+        self.ensure_one()
+        return sum([
+            data['amount']
+            for data in inv._get_invoice_payment_info_JSON()
+            if data['payment_id'] == self.id
+        ])
+
+
+    def get_process_data_xml(self, res): 
+        attachment_obj = self.env['ir.attachment']
+        
+        attachment_obj = self.env['ir.attachment']
+        attachment_values = {
+            'name': fname,
+            'datas': base64.encodestring(res.xml),
+            'datas_fname': fname,
+            'description': 'Comprobante Fiscal Digital',
+            'res_model': self._name,
+            'res_id': self.id,
+            'mimetype': 'application/xml',
+            'type': 'binary'
+        }
+        attachment_obj.create(attachment_values)
+            
+            

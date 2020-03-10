@@ -343,7 +343,9 @@
                                 <tbody class="invoice_tbody">
                                     <tr>
                                         <td style="width: 25%;">
-                                            <img t-if="o.qrcode" t-att-src="'data:image/png;base64,%s' % o.qrcode" style="vertical-align: text-top; width:140px!important;height:140px!important;"/>
+                                            <img alt="Barcode" t-att-src="'/report/barcode/?type=QR&amp;value=%s&amp;width=%s&amp;height=%s' % (quote_plus(                         'https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?' + keep_query(re=o.company_id.vat, rr=o.partner_id.vat,
+                                tt='%.*f' % (o.currency_id.decimal_places, o.price_total_sat), id=o.uuid)
+                                + '&amp;fe=%s' % quote_plus( o.sello, 'utf-8', 'strict', '=/').replace('%2B', '+')),200,200 )"/>
                                         </td>
                                         <td style="width: 25%;">
                                             <div class="row font_inv">

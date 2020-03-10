@@ -13,7 +13,7 @@
         'python': ['xlsxwriter']
     },
     'depends': [
-        'sale', 'purchase', 'account', 'report'
+        'base','sale', 'purchase', 'account', 'report'
     ],
     'data': [
         'data/report_data.xml',
@@ -23,6 +23,7 @@
         'report/account_move.xml',
         'views/models_views.xml',
         'views/account_payment_view.xml',
+        'views/report_account_payment.xml',
         #'views/wiz_report_xlsx_view.xml'
     ],
     'installable': True,

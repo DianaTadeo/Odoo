@@ -223,7 +223,7 @@ class AccountInvoice(models.Model):
     usocfdi_id = fields.Many2one('cfd_mx.usocfdi', string="Uso de Comprobante CFDI", required=False)
     metodopago_id = fields.Many2one('cfd_mx.metodopago', string=u'Metodo de Pago')
     reason_cancel = fields.Text(string="Motivo Cancelacion")
-    cfdi_timbre_id = fields.Many2one('cfdi.timbres.sat', string=u'Timbre SAT', copy=False)
+    cfdi_timbre_id = fields.Many2one('cfdi.timbres.sat', string=u'Timbre SAT', copy=False, readonly=True)
     cfdi_pending_cancel = fields.Boolean(string="CFDI Pending Cancel", default=False, copy=False)
     cfdi_pending_accept_cancel = fields.Boolean(string="CFDI Pending Accept Cancel", default=False, copy=False)
     cfdi_accept_reject = fields.Selection(
@@ -463,9 +463,6 @@ class AccountInvoice(models.Model):
             message = str(e)
         if message:
             self.message_post(body=message)
-            #message = message.replace("(u'", "").replace("', '')", "")
-            #self.with_context(**context).action_raise_message("Error al Generar el XML \n\n %s "%( message.upper() ))
-            #return False
         return True
 
     @api.model
@@ -534,7 +531,6 @@ class AccountInvoice(models.Model):
             attachment_obj.create(attachment_values)
             # Guarda datos:
             tree = fromstring(res.xml)
-            #raise UserError(tree.attrib['TipoCambio'])
             values = {
                 'cadena': self.cadena,
                 'fecha_timbrado': res.Fecha,
@@ -543,36 +539,19 @@ class AccountInvoice(models.Model):
                 'sello': tree.attrib['Sello'],
                 'noCertificado': tree.attrib['NoCertificado'],
                 'uuid': res.UUID,
-                #'qrcode': res.qr_img,
                 'mensaje_pac': res.CodEstatus,
                 'tipo_cambio': tree.attrib['TipoCambio'],
-                #'cadena_sat': res.cadena_sat
             }
             self.write(values)
             
 
-
-            ##########
-
-            """
-            xname = "%s.xml"%tfdtree.get('UUID')
-            attachment_values = {
-                'name':  xname,
-                'datas': res.xml,
-                'datas_fname': xname,
-                'description': 'Comprobante Fiscal Digital',
-                'res_model': 'cfdi.timbres.sat',
-                'res_id': timbre_id.id,
-                'mimetype': 'application/xml'
-                #'type': 'binary'
-            }
 
             self.write({
                 'cfdi_timbre_id': timbre_id.id,
                 'uuid': res.UUID,
                 'test': self.company_id.cfd_mx_test
             })
-            """
+            
 
     @api.multi
     def get_comprobante_addenda(self):

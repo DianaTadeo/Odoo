@@ -4,8 +4,8 @@
         <Comprobante
             Version="3.3"
             t-att-Fecha="date"
-            t-att-Folio="record.name[:8]"
-            t-att-Serie="record.name[9:]"
+            t-att-Folio="record.name[12:]"
+            t-att-Serie="record.name[:11]"
             Sello=""
             t-att-NoCertificado="certificate_number"
             t-att-Certificado="certificate"
@@ -18,7 +18,7 @@
             <t t-set="related" t-value="record.get_cfdi_related()"/>
             <t t-if="related">
                 <CfdiRelacionados
-                    t-att-TipoRelacion="04">
+                    t-att-TipoRelacion="related['type']">
                     <t t-foreach="related['related']" t-as="number">
                         <CfdiRelacionado t-att-UUID="number"/>
                     </t>
@@ -27,12 +27,12 @@
             <Emisor
                 t-att-Rfc="supplier.vat"
                 t-att-Nombre="supplier.name"
-                t-att-RegimenFiscal="fiscal_regime"/>
+                t-att-RegimenFiscal="supplier.regimen_id.clave"/>
             <Receptor
                 t-att-Rfc="customer.commercial_partner_id.vat"
                 t-att-Nombre="customer.commercial_partner_id.name"
-                t-att-ResidenciaFiscal="0"
-                t-att-NumRegIdTrib="algo"
+                t-att-ResidenciaFiscal="customer.commercial_partner_id.zip if customer.commercial_partner_id.country_id.code_alpha3 != 'MEX' else False"
+                t-att-NumRegIdTrib="customer.commercial_partner_id.vat if customer.commercial_partner_id.country_id.code_alpha3 != 'MEX' else False"
                 UsoCFDI="P01"/>
             <Conceptos>
                 <Concepto
