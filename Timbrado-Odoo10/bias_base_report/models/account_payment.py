@@ -13,7 +13,7 @@ from lxml import etree
 from lxml.objectify import fromstring
 from zeep import Client
 from zeep.transports import Transport
-from odoo import _, api, fields, models
+from odoo import _, api, fields, models,  tools
 from odoo.tools import DEFAULT_SERVER_TIME_FORMAT
 from odoo.tools.float_utils import float_compare
 from odoo.tools.misc import html_escape
@@ -235,9 +235,8 @@ class AccountPayment(models.Model):
         return node[0] if node else None
 
 
-    """
     @api.model
-    def l10n_mx_edi_get_payment_etree(self, cfdi):
+    def _get_payment_etree(self, cfdi):
         '''Get the Complement node from the cfdi.
 
         :param cfdi: The cfdi as etree
@@ -249,7 +248,6 @@ class AccountPayment(models.Model):
         namespace = {'pago10': 'http://www.sat.gob.mx/Pagos'}
         node = cfdi.Complemento.xpath(attribute, namespaces=namespace)
         return node
-    """
 
     @api.model
     def _get_cadena(self):
@@ -803,7 +801,6 @@ class AccountPayment(models.Model):
                 transport = Transport(timeout=20)
                 client = Client(url, transport=transport)
                 response = client.service.stamp(cfdi, username, password)
-
             except Exception as e:
                 raise UserError(str(e))
                 #rec.cfd_mx_log_error(str(e))
@@ -1107,7 +1104,7 @@ class AccountPayment(models.Model):
         #get the xslt path
         xslt_path = CFDI_XSLT_CADENA_TFD
         #get the cfdi as eTree
-        cfdi = base64.decodestring(self.l10n_mx_edi_cfdi)
+        cfdi = base64.decodestring(self.cfd_mx_cfdi)
         cfdi = self._get_xml_etree(cfdi)
         cfdi = self._get_tfd_etree(cfdi)
         #return the cadena

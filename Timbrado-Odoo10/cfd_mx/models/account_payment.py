@@ -194,9 +194,8 @@ class AccountPayment(models.Model):
         node = cfdi.Complemento.xpath(attribute, namespaces=namespace)
         return node[0] if node else None
 
-    """
     @api.model
-    def l10n_mx_edi_get_payment_etree(self, cfdi):
+    def _get_payment_etree(self, cfdi):
         '''Get the Complement node from the cfdi.
 
         :param cfdi: The cfdi as etree
@@ -208,7 +207,6 @@ class AccountPayment(models.Model):
         namespace = {'pago10': 'http://www.sat.gob.mx/Pagos'}
         node = cfdi.Complemento.xpath(attribute, namespaces=namespace)
         return node
-    """
 
     @api.model
     def _get_cadena(self):
