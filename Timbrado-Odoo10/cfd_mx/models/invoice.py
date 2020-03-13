@@ -439,6 +439,7 @@ class AccountInvoice(models.Model):
         self.with_context(**context).action_raise_message(message)
         return message
 
+
     @api.one
     def action_create_cfd(self):
         context = dict(self._context)

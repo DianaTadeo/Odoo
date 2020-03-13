@@ -40,8 +40,8 @@
 
 
     <data>
-
 <template id="report_cfdi_payment_receipt_document">
+    
         <t t-call="report.html_container">
            <t t-foreach="docs" t-as="o">
             <t t-call="report.external_layout">
@@ -57,38 +57,38 @@
                 <t t-set="tfd_original_string" t-value="o._get_cadena()"/>
             </t>
             <div class="page">
-                <h3><strong>Payment Receipt: <span t-field="o.name"/></strong></h3>
+                <h3><strong>Recibo de Pago: <span t-field="o.name"/></strong></h3>
                 <div class="row mt64">
                     <div class="col-6" t-if="o.payment_date">
-                        <strong>Payment Date: </strong> <span t-field="o.payment_date"/>
+                        <strong>Fecha de Pago: </strong> <span t-field="o.payment_date"/>
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-6" t-if="o.partner_type">
                         <t t-if="o.partner_type == 'customer'">
-                            <strong>Customer: </strong>
+                            <strong>Cliente: </strong>
                         </t>
                         <t t-if="o.partner_type == 'supplier'">
-                            <strong>Vendor: </strong>
+                            <strong>Vendedor: </strong>
                         </t><span t-field="o.partner_id"/>
                     </div>
                     <div class="col-6" t-if="o.cfd_mx_cfdi_uuid and o.cfd_mx_cfdi_supplier_rfc">
-                        <span t-if="o.company_id.vat != o.cfd_mx_cfdi_supplier_rfc">XML VAT: <span t-esc="o.cfd_mx_cfdi_supplier_rfc"></span></span>
+                        <span t-if="o.company_id.vat != o.cfd_mx_cfdi_supplier_rfc">XML RFC: <span t-esc="o.cfd_mx_cfdi_supplier_rfc"></span></span>
                     </div>
                     <div class="col-6" t-if="o.cfd_mx_cfdi_uuid and o.payment_method_id">
-                        <strong>Payment Way CFDI:</strong>
+                        <strong>Forma de Pago del CFDI:</strong>
                         <span t-esc="' - '.join([o.payment_method_id.code, o.cfd_mx_payment_method_id.name])"/>
                     </div>
                     <div class="col-xs-6" t-if="o.payment_method_id">
                         <t t-if="not o.cfd_mx_cfdi_uuid">
-                            <strong>Payment Method: </strong><span t-field="o.payment_method_id.name"/>
+                            <strong>Método de Pago: </strong><span t-field="o.payment_method_id.name"/>
                        </t>
                     </div>
                 </div>
 
                 <div class="row mb64">
                     <div class="col-6" t-if="o.amount">
-                        <strong>Payment Amount: </strong><span t-field="o.amount" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                        <strong>Saldo Pagado: </strong><span t-field="o.amount" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                      </div>
                     <div class="col-6" t-if="o.communication">
                         <strong>Memo: </strong><span t-field="o.communication"/>
@@ -126,18 +126,18 @@
                 <table class="table table-sm">
                     <thead>
                         <tr>
-                            <th>Invoice</th>
+                            <th>Factura</th>
                             <th>UUID</th>
-                            <th class="text-right">Partiality</th>
-                            <th class="text-right">Previous balance</th>
-                            <th class="text-right">Amount Paid</th>
+                            <th class="text-right">Parcialidad</th>
+                            <th class="text-right">Balance Previo</th>
+                            <th class="text-right">Valor Pagado</th>
                             <th class="text-right">Balance</th>
                             <th>Currency</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr t-foreach="docs_related" t-as="inv">
-                            <td><span t-esc="o.invoice_ids.filtered(lambda i: i.uuid == inv.get('IdDocumento')).name or ''"/></td>
+                            <td><span t-esc="inv.get('Serie')+'/'+inv.get('Folio')"/></td>
                             <td><span t-esc="inv.get('IdDocumento')"/></td>
                             <td class="text-right"><span t-esc="inv.get('NumParcialidad', '')"/></td>
                             <td class="text-right"><span t-esc="inv.get('ImpSaldoAnt', '')"/></td>
@@ -152,10 +152,10 @@
                 <table class="table table-sm">
                     <thead>
                         <tr>
-                            <th>Invoice Date</th>
-                            <th>Invoice Number</th>
-                            <th class="text-right">Original Amount</th>
-                            <th class="text-right">Amount Paid</th>
+                            <th>Fecha de Facturación</th>
+                            <th>Número de Factura</th>
+                            <th class="text-right">Costo Original</th>
+                            <th class="text-right">Valor Pagado</th>
                             <th class="text-right">Balance</th>
                         </tr>
                     </thead>
@@ -174,51 +174,51 @@
                 <div class="row" id='complement'>
                     <div class="barcode col-3">
                         <t t-set="sello" t-value="xml.get('Sello', 'No identificado')[-8:]"/>
-                        <img alt="Barcode" t-att-src="'/report/barcode/?type=QR&amp;value=%s' % quote_plus(
+                        <img alt="Barcode" t-att-src="'/report/barcode/?type=QR&amp;value=%s&amp;width=%s&amp;height=%s' % (quote_plus(
                             'https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?' + keep_query(
                                 re=o.cfd_mx_cfdi_supplier_rfc, rr=o.cfd_mx_cfdi_customer_rfc,
                                 tt=0, id=o.cfd_mx_cfdi_uuid)
-                                + '&amp;fe=%s' % quote_plus(sello, 'utf-8', 'strict', '=/').replace('%2B', '+'))"/>
+                                + '&amp;fe=%s' % quote_plus(sello, 'utf-8', 'strict', '=/').replace('%2B', '+')),200,200)"/>
                     </div>
                     <div class="complement-details col-9">
-                        <div class="digital-stamp">
-                            <span>Digital stamp of the emitter</span>
+                        <div class="bg_theme_color text-center">
+                            <span><strong>Sello Digital de Emisión</strong></span>
                         </div>
                         <div class="digital-stamp-content">
                             <span t-esc="xml.get('Sello', 'No identificado')"/>
                         </div>
-                        <div class="digital-stamp">
-                            <span>Digital stamp SAT</span>
+                        <div class="bg_theme_color text-center">
+                            <span><strong>Sello Digital del SAT</strong></span>
                         </div>
                         <div class="digital-stamp-content">
                             <span t-esc="tfd.get('SelloSAT', 'No identificado')"/>
                         </div>
-                        <div class="digital-stamp">
-                            <span>Original chain complement of digital certification SAT</span>
+                        <div class="bg_theme_color text-center">
+                            <span><strong>Cadena Original Complementaria al Certificado del SAT</strong></span>
                         </div>
                         <div class="digital-stamp-content">
                             <span class="nowrap" t-esc="tfd_original_string"/>
                         </div>
-                        <div t-if="xml.Emisor.xpath('cfdi:ExpedidoEn', namespaces=xml.nsmap)" class="digital-stamp">
-                            <span>Issued from</span>
+                        <div t-if="xml.Emisor.xpath('cfdi:ExpedidoEn', namespaces=xml.nsmap)" class="bg_theme_color text-center">
+                            <span><strong>Lugar de Expedición</strong></span>
                         </div>
                         <div t-if="xml.Emisor.xpath('cfdi:ExpedidoEn', namespaces=xml.nsmap)" class="digital-stamp-content">
                             <span t-esc="xml.get('LugarExpedicion', 'No identificado')"/>
                         </div>
-                        <div class="digital-stamp">
-                            <span>Extra Info</span>
+                        <div class="bg_theme_color text-center">
+                            <span><strong>Información Extra</strong></span>
                         </div>
                         <div class="digital-stamp-content">
-                            <span>Emitter certificate:</span> <span t-esc="xml.get('NoCertificado')"/>
-                            <span> | SAT Certificate:</span> <span t-esc="tfd.get('NoCertificadoSAT')"/>
-                            <span> | Expedition place:</span> <span t-esc="xml.get('LugarExpedicion')"/>
-                            <span> | Fiscal Regime:</span><span t-esc="xml.Emisor.get('RegimenFiscal', '')"/>
-                            <span> | Emission Date:</span> <span t-esc="xml.get('Fecha', '').replace('T', ' ')"/>
-                            <span> | Certification Date:</span> <span t-esc="tfd.get('FechaTimbrado', '').replace('T', ' ')"/>
-                            <span> | Fiscal Folio:</span> <span t-esc="tfd.get('UUID')"/>
+                            <span>Certificado de Emisión:</span> <span t-esc="xml.get('NoCertificado')"/>
+                            <span> | Certificado SAT :</span> <span t-esc="tfd.get('NoCertificadoSAT')"/>
+                            <span> | Lugar de Expedición:</span> <span t-esc="xml.get('LugarExpedicion')"/>
+                            <span> | Régimen Fiscal:</span><span t-esc="xml.Emisor.get('RegimenFiscal', '')"/>
+                            <span> | Fecha de Emisión:</span> <span t-esc="xml.get('Fecha', '').replace('T', ' ')"/>
+                            <span> | Fecha de Certificación:</span> <span t-esc="tfd.get('FechaTimbrado', '').replace('T', ' ')"/>
+                            <span> | Folio Fiscal:</span> <span t-esc="tfd.get('UUID')"/>
                         </div>
                         <div class="digital-stamp-content text-center">
-                            <strong>This document is a printed representation of a CFDI</strong>
+                            <strong>Este Documento es una Representación impresa del CFDI.</strong>
                         </div>
                     </div>
                 </div>

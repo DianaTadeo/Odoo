@@ -323,14 +323,7 @@ class AccountPayment(models.Model):
             return force or False
         return required
 
-    
-    @api.model
-    def _get_force_rep_category(self):
-        raise UserError('Enforce')
-        return self.env.ref(
-            'l10n_mx_edi.res_partner_category_force_rep', False)
-    
-
+  
 
     def cfd_mx_log_error(self, message):
         self.ensure_one()
@@ -417,16 +410,10 @@ class AccountPayment(models.Model):
         # Check the configuration
         # -----------------------
         # -Check certificate
-        #certificate_ids = company_id.l10n_mx_edi_certificate_ids #cfd_mx_cer
-        #certificate_id = company_id.cfd_mx_cer
         certificate = False
         cer_pem = False
         try:
             cer_pem, certificate = self.get_data()
-            #before = mexican_tz.localize(
-            #    datetime.strptime(certificate.get_notBefore().decode("utf-8"), date_format))
-            #after = mexican_tz.localize(
-            #    datetime.strptime(certificate.get_notAfter().decode("utf-8"), date_format))
             serial_number = certificate.get_serial_number()
             self.serial_number= ('%x' % serial_number)[1::2]
         except Exception:
@@ -444,9 +431,6 @@ class AccountPayment(models.Model):
                 raise ValidationError('No PAC credentials specified.')
         else:
             raise ValidationError('No PAC specified.')
-
-        #if error_log:
-            #return {'error': _('Please check your configuration: ') + invoice_cfdi.create_list_html(error_log)}
 
         # -Compute date and time of the invoice
         partner = self.journal_id.address_issued_id or self.company_id.partner_id.commercial_partner_id
@@ -472,20 +456,14 @@ class AccountPayment(models.Model):
             time_invoice).strftime('%Y-%m-%dT%H:%M:%S')
 
         values['certificate_number'] = self.serial_number
-        values['certificate'] = cer_pem#certificate_id.sudo().get_data()[0]
+        values['certificate'] = cer_pem
 
         # -Compute cfdi
         cfdi = qweb.render(CFDI_TEMPLATE, values=values)
         cfdi = get_format(cfdi)
-        #fil= open('/tmp/pago.xml', 'w')
-        #fil.write(cfdi)
-        #fil.close()
-        # -Compute cadena
         tree = fromstring(cfdi)
         
         cadena = self.env['account.invoice'].generate_cadena(CFDI_XSLT_CADENA, tree)
-        #raise UserError(cadena)
-        # Post append cadena
         tree.attrib['Sello'] = self.get_encrypted_cadena(cadena, company_id)
         fil= open('/tmp/pago.xml', 'w')
         fil.write(etree.tostring(tree))
@@ -540,19 +518,6 @@ class AccountPayment(models.Model):
         total_paid = total_curr = total_currency = 0
         for invoice in self.invoice_ids:
             lista = invoice._get_invoice_payment_info_JSON()
-            """
-            for p in lista:
-                raise UserError(str(p.get('payment_id', False))+' : '+str(self.id))
-                if p.get('payment_id', False) == self.id:
-                    raise UserError('primera')
-                if not p.get('payment_id'):
-                    raise UserError('segunda')
-                if not p.get('invoice_id'):
-                    raise UserError('tercera')
-                if p.get('invoice_id') == invoice.id:
-                    raise UserError('cuarta')
-                raise UserError('Ninguna')
-            """
             amount = [p for p in invoice._get_invoice_payment_info_JSON() if (
                 p.get('payment_id', False) == self.id or not p.get(
                     'payment_id') and (not p.get('invoice_id') or p.get(
