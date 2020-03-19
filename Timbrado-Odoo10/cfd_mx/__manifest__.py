@@ -44,13 +44,12 @@ Factura Electronica Mexico 3.3
         'views/res_company_view.xml',
         'views/partner_view.xml',
         'views/account_view.xml',
+        'views/account_payment_view.xml',
         'views/certificate_view.xml',   #Agredado     
         'views/product_product_views.xml',
         'views/invoice_view.xml',
         'views/report_invoice_mx_document.xml',
         'views/report_supplierinvoice.xml',
-        #'views/report_payment_receipt_document.xml',
-        # 'data/mail.template.csv',
         'wizard/reason_cancel_invoice_view.xml'
     ],
     'demo': [],

@@ -21,7 +21,7 @@ from odoo.exceptions import UserError, RedirectWarning, ValidationError
 
 import logging
 logging.basicConfig(level=logging.INFO)
-
+CFDI_XSLT_CADENA_TFD = 'cfd_mx/data/xslt/3.3/cadenaoriginal_TFD_1_1.xslt'
 
 class AccountInvoiceBatch(models.Model):
     _name = 'account.invoice.bath'
@@ -483,6 +483,20 @@ class AccountInvoice(models.Model):
 
 
     def get_process_data(self, obj, res):
+        fname = '%s.xml'% (res.UUID or obj.number or obj.name or '')
+        # Adjuntos
+        attachment_obj = obj.env['ir.attachment']
+        attachment_values = {
+            'name': fname,
+            'datas': base64.encodestring(res.xml),
+            'datas_fname': fname,
+            'description': 'Comprobante Fiscal Digital',
+            'res_model': obj._name,
+            'res_id': obj.id,
+            'mimetype': 'application/xml',
+            'type': 'binary'
+        }
+        attachment_obj.create(attachment_values)
         return True
 
     def get_process_data_xml(self, res): 
@@ -491,6 +505,8 @@ class AccountInvoice(models.Model):
         Timbre = self.env['cfdi.timbres.sat']
         tree = fromstring(res.xml)
         tfdtree= self.get_tfd_etree(tree)
+
+        cadena_sat = self.generate_cadena(CFDI_XSLT_CADENA_TFD,tfdtree)
 
         currency_id = Currency.search([('name', '=', tree.get('Moneda'))])
         if not currency_id:
@@ -535,7 +551,6 @@ class AccountInvoice(models.Model):
             attachment_obj.create(attachment_values)
             # Guarda datos:
             tree = fromstring(res.xml)
-            #raise UserError(tree.attrib['TipoCambio'])
             values = {
                 'cadena': self.cadena,
                 'fecha_timbrado': res.Fecha,
@@ -547,15 +562,11 @@ class AccountInvoice(models.Model):
                 #'qrcode': res.qr_img,
                 'mensaje_pac': res.CodEstatus,
                 'tipo_cambio': tree.attrib['TipoCambio'],
-                #'cadena_sat': res.cadena_sat
+                'cadena_sat': cadena_sat
             }
             self.write(values)
             
 
-
-            ##########
-
-            """
             xname = "%s.xml"%tfdtree.get('UUID')
             attachment_values = {
                 'name':  xname,
@@ -564,17 +575,16 @@ class AccountInvoice(models.Model):
                 'description': 'Comprobante Fiscal Digital',
                 'res_model': 'cfdi.timbres.sat',
                 'res_id': timbre_id.id,
-                'mimetype': 'application/xml'
-                #'type': 'binary'
+                'mimetype': 'application/xml',
+                'type': 'binary'
             }
-
+            attachment_obj.create(attachment_values)
             self.write({
                 'cfdi_timbre_id': timbre_id.id,
                 'uuid': res.UUID,
                 'test': self.company_id.cfd_mx_test
             })
-            """
-
+            
     @api.multi
     def get_comprobante_addenda(self):
         context = dict(self._context) or {}

@@ -856,9 +856,7 @@ class AccountPayment(models.Model):
             post_msg.extend([_('Code: %s') % code])
         if msg:
             post_msg.extend([_('Message: %s') % msg])
-        #self.message_post(
-        #    body=body_msg + invoice_cfdi.create_list_html(post_msg))
-
+            
     def update_pac_status(self):
         """Synchronize both systems: Odoo & PAC if the invoices need to be
         signed or cancelled."""
