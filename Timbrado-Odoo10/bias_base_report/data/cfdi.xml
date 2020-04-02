@@ -115,8 +115,8 @@
                       <t t-set="t_transferred" t-value="record.total_impuestos('transferred')"/>
                       <t t-set="t_withholding" t-value="record.total_impuestos('withhold')"/>
                       <Impuestos
-                        t-att-TotalImpuestosTrasladados="t_transferred"
-                        t-att-TotalImpuestosRetenidos="t_withholding">
+                        t-att-TotalImpuestosTrasladados="'%.2f' % (t_transferred)"
+                        t-att-TotalImpuestosRetenidos="'%.2f' % (t_withholding)">
                         <t t-set="transferred" t-value="record.create_taxes_cfdi().get('transferred')"/>
                         <t t-set="withholding" t-value="record.create_taxes_cfdi().get('withholding')"/>
                         <t t-if="withholding">
@@ -131,7 +131,7 @@
                         <t t-if="transferred">
                             <Traslados>
                                 <t t-foreach="transferred" t-as="transfer">
-                                    <t t-set="code_imp" t-value="record.get_code_impuesto(transfer['name'])"/>
+                                    <t t-set="code_imp" t-value="record.get_code_impuesto(transfer['group'])"/>
                                     <Traslado
                                         t-att-Importe="'%.2f' % (transfer['amount'] if transfer['amount'] else 0.00)" 
                                         t-att-Impuesto="code_imp"

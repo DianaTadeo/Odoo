@@ -802,6 +802,7 @@ class AccountInvoice(models.Model):
     @api.multi
     def action_invoice_cancel_cfdi(self):
         self.ensure_one()
+        res=False
         try:
             res = self.with_context({'type': 'invoice'}).cancelation(self)
 
@@ -816,8 +817,8 @@ class AccountInvoice(models.Model):
         if res.get('Estado', '') == 'Cancelado':
             self.action_invoice_cancel_cfdi_sat()
             return self.action_invoice_cancel()
-
-        
+        if not self.cfdi_timbre_id:
+            return self.action_invoice_cancel()
         if not self.cfdi_is_required:
             return self.action_invoice_cancel()
         if self.company_id.cfd_mx_test:

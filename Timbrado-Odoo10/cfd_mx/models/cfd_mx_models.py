@@ -1081,7 +1081,7 @@ class certificate(models.Model):
     company_id = fields.Many2one('res.company', string='Compañía', 
             required=True, default=lambda self: self.env.user.company_id.id)
     active = fields.Boolean(default=True, help="If the active field is set to False, it will allow you to hide the certificate without removing it.")
-"""
+
 ########################################
 #
 # Quitar en Futuras versiones
@@ -1098,14 +1098,14 @@ class ResCurrency(models.Model):
 
 
     def _convert(self, from_amount, to_currency, company, date, round=True):
-        """Returns the converted amount of ``from_amount``` from the currency
+        Returns the converted amount of ``from_amount``` from the currency
            ``self`` to the currency ``to_currency`` for the given ``date`` and
            company.
 
            :param company: The company from which we retrieve the convertion rate
            :param date: The nearest date from which we retriev the conversion rate.
            :param round: Round the result or not
-        """
+        
         self, to_currency = self or to_currency, to_currency or self
         assert self, "convert amount from unknown currency"
         assert to_currency, "convert amount to unknown currency"
@@ -1120,7 +1120,6 @@ class ResCurrency(models.Model):
         return to_currency.round(to_amount) if round else to_amount
 
 
-    """
 
     def _get_conversion_rate(self, from_currency, to_currency, company, date):
         currency_rates = (from_currency + to_currency)._get_rates(company, date)
@@ -1132,4 +1131,4 @@ class ResCurrency(models.Model):
         to_currency = to_currency.with_env(self.env)
         return to_currency.rate / from_currency.rate
 
-    """
+"""

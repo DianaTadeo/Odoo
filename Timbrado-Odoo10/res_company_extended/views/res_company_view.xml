@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+
+        <record id="view_res_bank_cfdi_form" model="ir.ui.view">
+            <field name="name">view_res_bank_cfdi_form</field>
+            <field name="model">res.bank</field>
+            <field name="inherit_id" ref="base.view_res_bank_form"/>
+            <field name="arch" type="xml">
+                <field name="bic" position="after">
+                    <field name="vat"/>
+                    <field name="description" />
+                </field>
+            </field>
+        </record>
+
+        
+        <record id="view_company_cfdi_form" model="ir.ui.view">
+            <field name="name">view.company.cfdi.form</field>
+            <field name="model">res.company</field>
+            <field name="inherit_id" ref="base.view_company_form"/>
+            <field name="arch" type="xml">
+                <notebook position="inside">
+                    <page string="CFD" name="cfd">
+                        <group>
+                            <group string="Timbrar">
+                                <field name="cfd_mx_test" />
+                                <field name="cfd_mx_pac" />
+                                <field name="cfd_mx_version" />
+                                <field name="cfd_mx_host" />
+                                <field name="cfd_mx_db" />
+                                <field name="cfd_mx_cer" />
+                                <field name="cfd_mx_key" />
+                                <field name="cfd_mx_key_password" />
+                            </group>
+                            <group string="General" name="cfdi_general">
+
+                                <field name="cfd_mx_fiscal_regime" />
+                                <field name="reason_cancel_invoice" />
+                            </group>
+                        </group>
+                        <group string="Diarios" >
+                            <field name="cfd_mx_journal_ids" colspan="4" nolabel="1" />
+                        </group>
+                    </page>
+                </notebook>
+            </field>
+        </record>
+       
+    </data>
+</openerp>

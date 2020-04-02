@@ -143,7 +143,6 @@ class AccountPayment(models.Model):
             tz = self.env['account.invoice']._get_timezone(
                 partner.state_id.code)
             date_mx = datetime.now(tz)
-            raise UserError('Antes write')
             record.write({
                 'cfd_mx_expedition_date': date_mx,
                 'cfd_mx_time_payment': date_mx.strftime(

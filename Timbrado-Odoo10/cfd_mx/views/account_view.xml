@@ -54,7 +54,6 @@
         </record>
         <menuitem action="action_account_tax_group" 
             parent="bias_base_report.menu_localizacion_mexico_root"
-            groups="group_cfd_mx_user"
             id="menu_account_tax_group" sequence="2" />
 
 

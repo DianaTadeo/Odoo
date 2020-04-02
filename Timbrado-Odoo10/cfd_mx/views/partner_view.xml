@@ -22,7 +22,7 @@
                                 <group>
                                     <field name="es_personafisica" />
                                     <field name="es_extranjero" />
-                                    <field name="identidad_fiscal" string="Identidad Fiscal" groups="cfd_mx.group_cfd_mx_manager"/>
+                                    <field name="identidad_fiscal" string="Identidad Fiscal"/>
                                     <field name="curp" />
                                     <field name="xml_cfdi_sinacento"/>
                                 </group>

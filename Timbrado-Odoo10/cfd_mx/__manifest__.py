@@ -19,11 +19,12 @@ Factura Electronica Mexico 3.3
         'bias_base_report',
         'account',
         'account_cancel',
-        'sales_team'
+        'res_company_extended',
+        'sales_team',
     ],
     'data': [
-        'security/cfd_mx_groups.xml',
-        'security/ir.model.access.csv',
+        #'security/cfd_mx_groups.xml',
+        #'security/ir.model.access.csv',
         'data/account_invoice.sql',
 
         'data/xml/service_cron_data.xml',

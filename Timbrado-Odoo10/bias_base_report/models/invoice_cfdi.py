@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
-import subprocess#
-import tempfile#
+import subprocess
+import tempfile
 
 
 import odoo
@@ -12,7 +12,7 @@ from odoo.tools import DEFAULT_SERVER_TIME_FORMAT
 from odoo.tools.misc import DEFAULT_SERVER_DATETIME_FORMAT
 from amount_to_text_es_MX import *
 import requests
-import ssl#
+import ssl
 from lxml import etree#
 from lxml.objectify import fromstring#
 from requests import Request, Session
@@ -233,8 +233,6 @@ class AccountCfdi(models.Model):
 
         datas = json.dumps(self.cfdi_datas, sort_keys=True, indent=4, separators=(',', ': '))
         
-        logging.info(datas)
-        #raise UserError(datas)
         data= {'record': self}
         cfdi = qweb.render(CFDI_TEMPLATE, values= data)
         cfdi = get_format(cfdi)
@@ -379,8 +377,10 @@ class AccountCfdi(models.Model):
                 transport = Transport(timeout=20)
                 client = Client(url, transport=transport)
                 response = client.service.stamp(cfdi, username, password)
+                logging.info(response)
             except Exception as e:
                 self.message_post(e)
+                logging.info(response)
                 continue
             code = 0
             msg = None
@@ -388,7 +388,9 @@ class AccountCfdi(models.Model):
                 code = getattr(response.Incidencias.Incidencia[0], 'CodigoError', None)
                 msg = getattr(response.Incidencias.Incidencia[0], 'MensajeIncidencia', None)
                 self.message_post('Código de error: '+code+' - '+msg)
+                raise UserError('Código de error: '+code+' - '+msg)
             xml_signed = getattr(response, 'xml', None)
+            logging.info(xml_signed)
 
             if xml_signed:
                 xml_signed = base64.b64encode(xml_signed.encode('utf-8'))
@@ -421,12 +423,10 @@ class AccountCfdi(models.Model):
                 invoices_list = client.get_type('ns1:UUIDS')(uuid_type)
                 response = client.service.cancel(
                     invoices_list, username, password, company_id.vat, cer_pem, key_pem)
-                raise UserError(response)
             except Exception as e:
                 raise UserError(e)
                 #inv.l10n_mx_edi_log_error(str(e))
                 #continue
-            raise UserError(response)
             if not getattr(response, 'Folios', None):
                 code = getattr(response, 'CodEstatus', None)
                 msg = _("Cancelling got an error") if code else _('A delay of 2 hours has to be respected before to cancel')
@@ -479,11 +479,9 @@ class AccountCfdi(models.Model):
             body_msg = _('The sign service requested failed')
             post_msg = []
         if code:
-            raise UserError('error?????CODE')
             post_msg.extend([_('Code: %s') % code])
             
         if msg:
-            raise UserError('error?????MENSAJE')
             post_msg.extend([_('Message: %s') % msg])
     
 
@@ -721,6 +719,7 @@ class AccountCfdi(models.Model):
                         'name': (tax.tag_ids[0].name
                                  if tax.mapped('tag_ids') else tax.name).upper(),
                         'amount': amount,
+                        'group' : tax.tax_group_id.name,
                         'rate': rate if tax.amount_type == 'fixed' else rate / 100.0,
                         'type': tax.cfdi_tipofactor,
                         'tax_amount': tax_dict.get('amount', tax.amount),

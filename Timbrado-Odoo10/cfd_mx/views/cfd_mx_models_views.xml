@@ -83,7 +83,6 @@
         <menuitem 
             action="action_cfdi_manifiesto_pac" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="group_cfd_mx_user"
             id="menu_cfdi_manifiesto_pac" sequence="80" />
 
         <!-- CATALOGO USO CFDI -->
@@ -179,7 +178,6 @@
         <menuitem 
             action="action_cfdi_timbres_sat" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="group_cfd_mx_user"
             id="menu_cfdi_timbres_sat" sequence="80" />
 
         <!-- CATALOGO USO CFDI -->
@@ -204,7 +202,6 @@
         <menuitem 
             action="action_uso_cfdi" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="group_cfd_mx_user"
             id="menu_uso_cfdi" sequence="90" />
 
         <!-- CATALOGO PRODUCTOS/SERVICIOS CFDI -->
@@ -238,7 +235,6 @@
         <menuitem
             action="action_clave_prodserv" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="group_cfd_mx_user"
             id="menu_clave_prodserv"
             sequence="91" />
 
@@ -275,7 +271,6 @@
         <menuitem
             action="action_unidades_medida" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="group_cfd_mx_user"
             id="menu_unidades_medida"
             sequence="92" />
 
@@ -311,7 +306,6 @@
         <menuitem
             action="action_formapago" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="group_cfd_mx_user"
             id="menu_formapago"
             sequence="93" />
 
@@ -346,7 +340,6 @@
         <menuitem
             action="action_metodopago" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="group_cfd_mx_user"
             id="menu_metodopago"
             sequence="94" />
 
@@ -383,7 +376,6 @@
         <menuitem
             action="action_regimen" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="group_cfd_mx_user"
             id="menu_regimen"
             sequence="95" />
 
@@ -418,7 +410,6 @@
         <menuitem
             action="action_aduana" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="group_cfd_mx_user"
             id="menu_aduana"
             sequence="100" />
 
@@ -462,7 +453,6 @@
         <menuitem action="action_conf_addenda"
             id="menu_conf_addenda" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="group_cfd_mx_user"
             sequence="120"  />
 
 
@@ -494,7 +484,6 @@
         <menuitem
             action="action_alta_catalogos_wizard" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="group_cfd_mx_user"
             id="menu_alta_catalogos_wizard"
             sequence="130" />
 
@@ -526,7 +515,6 @@
         <menuitem
             action="action_electronic_cfdi_wizard" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="cfd_mx.group_cfd_mx_user"
             id="menu_alta_cfdi_wizard"
             sequence="201" />
 
@@ -561,7 +549,6 @@
         <menuitem
             action="action_report_cfdi_wizard" 
             parent="bias_base_report.menu_catalogo_cfdi"
-            groups="cfd_mx.group_cfd_mx_user"
             id="menu_report_cfdi_wizard"
             sequence="201" />
 
