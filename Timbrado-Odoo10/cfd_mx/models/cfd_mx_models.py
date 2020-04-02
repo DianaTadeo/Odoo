@@ -1081,13 +1081,13 @@ class certificate(models.Model):
     company_id = fields.Many2one('res.company', string='Compañía', 
             required=True, default=lambda self: self.env.user.company_id.id)
     active = fields.Boolean(default=True, help="If the active field is set to False, it will allow you to hide the certificate without removing it.")
-
+"""
 ########################################
 #
 # Quitar en Futuras versiones
 #
 ########################################
-
+"""
 class ResCurrency(models.Model):
     _inherit = 'res.currency'
 
@@ -1118,6 +1118,7 @@ class ResCurrency(models.Model):
             to_amount = from_amount * self._get_conversion_rate(self, to_currency)
         # apply rounding
         return to_currency.round(to_amount) if round else to_amount
+
 
 
 

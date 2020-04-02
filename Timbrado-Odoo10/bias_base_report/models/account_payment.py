@@ -20,7 +20,8 @@ from odoo.tools.misc import html_escape
 from odoo.exceptions import UserError
 
 from . import invoice_cfdi
-
+import logging
+_logger = logging.getLogger(__name__)
 try:
     from OpenSSL import crypto
 except ImportError:
@@ -365,11 +366,9 @@ class AccountPayment(models.Model):
             if error:
                 # cfdi failed to be generated
                 rec.cfd_mx_pac_status = 'retry'
-                #rec.message_post(body=error)
-                raise UserError(error)
+                _logger.warning(error)
                 continue
             # cfdi has been successfully generated
-            #raise UserError('Todo bien ')
             rec.cfd_mx_pac_status = 'to_sign'
             filename = ('%s-%s-MX-Payment-10.xml' % (
                 rec.journal_id.code, rec.name))
@@ -401,10 +400,9 @@ class AccountPayment(models.Model):
         pac_name = company_id.cfd_mx_pac
         values = self._create_cfdi_values()
         
-        #raise UserError(values)
         if 'error' in values:
             #error_log.append(values.get('error'))
-            raise UserError(values.get('error'))
+            _logger.error(values.get('error'))
         # -----------------------
         # Check the configuration
         # -----------------------
@@ -521,7 +519,6 @@ class AccountPayment(models.Model):
                 p.get('payment_id', False) == self.id or not p.get(
                     'payment_id') and (not p.get('invoice_id') or p.get(
                         'invoice_id') == invoice.id))]
-            #raise UserError(amount)
             amount_payment = sum([data.get('amount', 0.0) for data in amount])
             total_paid += amount_payment if invoice.currency_id != self.currency_id else 0
             total_currency += amount_payment if invoice.currency_id == self.currency_id else 0
@@ -586,9 +583,6 @@ class AccountPayment(models.Model):
                 ' ', '') if acc_receiver_ok else None,
         }
 
-        
-        #raise UserError(str(rate)+'#'+str(total_paid)+'#'+str(total_currency))
-
     def _sign(self):
         """Call the sign service with records that can be signed."""
         records = self.search([
@@ -596,41 +590,6 @@ class AccountPayment(models.Model):
             ('id', 'in', self.ids)])
         records._call_service('sign')
 
-    def _post_cancel_process(self, cancelled, code=None, msg=None):
-        '''Post process the results of the cancel service.
-
-        :param cancelled: is the cancel has been done with success
-        :param code: an eventual error code
-        :param msg: an eventual error msg
-        '''
-
-        self.ensure_one()
-        if cancelled:
-            body_msg = _('The cancel service has been called with success')
-            self.cfd_mx_pac_status = 'cancelled'
-            legal = _(
-                '''<h3 style="color:red">Legal warning</h3>
-                <p> Regarding the issue of the CFDI with' Complement for
-                receipt of payments', where there are errors in the receipt, this
-                may be canceled provided it is replaced by another with the correct data.
-                If the error consists in which the payment receipt
-                complement should not have been issued because the consideration
-                had already been paid in full; replaced by another with an
-                amount of one peso.</p>
-                <p><a href="http://www.sat.gob.mx/informacion_fiscal/factura_electronica/Documents/Complementoscfdi/Guia_comple_pagos.pdf">
-                For more information here (Pag. 5)</a></p>''')
-            self.message_post(body=legal)
-        else:
-            body_msg = _('The cancel service requested failed')
-        post_msg = []
-        if code:
-            post_msg.extend([_('Code: %s') % code])
-        if msg:
-            post_msg.extend([_('Message: %s') % msg])
-        self.message_post(
-            body=body_msg + invoice_cfdi.create_list_html(post_msg))
-
-    
     def _call_service(self, service_type):
         """Call the right method according to the pac_name, it's info returned
         by the '_l10n_mx_edi_%s_info' % pac_name'
@@ -684,73 +643,6 @@ class AccountPayment(models.Model):
             if write_off_invoice_currency > 0:
                 res[last_invoice.id] = write_off_invoice_currency
         return res
-    
-    @api.model
-    def _solfact_info(self, company_id, service_type):
-        test = company_id.l10n_mx_edi_pac_test_env
-        username = company_id.l10n_mx_edi_pac_username
-        password = company_id.l10n_mx_edi_pac_password
-        url = 'https://testing.solucionfactible.com/ws/services/Timbrado?wsdl'\
-            if test else 'https://solucionfactible.com/ws/services/Timbrado?wsdl'
-        return {
-            'url': url,
-            'multi': False,  # TODO: implement multi
-            'username': 'testing@solucionfactible.com' if test else username,
-            'password': 'timbrado.SF.16672' if test else password,
-        }
-
-    def _solfact_sign(self, pac_info):
-        '''SIGN for Solucion Factible.
-        '''
-        url = pac_info['url']
-        username = pac_info['username']
-        password = pac_info['password']
-        for rec in self:
-            cfdi = base64.decodestring(rec.cfd_mx_cfdi)
-            try:
-                transport = Transport(timeout=20)
-                client = Client(url, transport=transport)
-                response = client.service.timbrar(username, password, cfdi, False)
-            except Exception as e:
-                rec.cfd_mx_log_error(str(e))
-                continue
-            msg = getattr(response.resultados[0], 'mensaje', None)
-            code = getattr(response.resultados[0], 'status', None)
-            xml_signed = getattr(response.resultados[0], 'cfdiTimbrado', None)
-            if xml_signed:
-                xml_signed = base64.b64encode(xml_signed)
-            rec._post_sign_process(
-                xml_signed if xml_signed else None, code, msg)
-
-    def _solfact_cancel(self, pac_info):
-        '''CANCEL for Solucion Factible.
-        '''
-        url = pac_info['url']
-        username = pac_info['username']
-        password = pac_info['password']
-        for rec in self:
-            uuids = [rec.cfd_mx_cfdi_uuid]
-            certificate_ids = rec.company_id.l10n_mx_edi_certificate_ids
-            certificate_id = certificate_ids.sudo().get_valid_certificate()
-            cer_pem = certificate_id.get_pem_cer(certificate_id.content)
-            key_pem = certificate_id.get_pem_key(
-                certificate_id.key, certificate_id.password)
-            key_password = certificate_id.password
-            try:
-                transport = Transport(timeout=20)
-                client = Client(url, transport=transport)
-                response = client.service.cancelar(username, password, uuids, cer_pem, key_pem, key_password)
-            except Exception as e:
-                rec.cfd_mx_log_error(str(e))
-                continue
-            code = getattr(response.resultados[0], 'statusUUID', None)
-            cancelled = code in ('201', '202')  # cancelled or previously cancelled
-            # no show code and response message if cancel was success
-            msg = '' if cancelled else getattr(response.resultados[0], 'mensaje', None)
-            code = '' if cancelled else code
-            rec._post_cancel_process(cancelled, code, msg)
-   
-
 
     def _finkok_sign(self, pac_info):
         """SIGN for Finkok."""
@@ -765,19 +657,21 @@ class AccountPayment(models.Model):
                 transport = Transport(timeout=20)
                 client = Client(url, transport=transport)
                 response = client.service.stamp(cfdi, username, password)
+                _logger.warning(response)
             except Exception as e:
-                raise UserError(str(e))
-                #rec.cfd_mx_log_error(str(e))
+                _logger.warning(str(e))
                 continue
             code = 0
             msg = None
             if response.Incidencias:
                 code = getattr(response.Incidencias.Incidencia[0], 'CodigoError', None)
                 msg = getattr(response.Incidencias.Incidencia[0], 'MensajeIncidencia', None)
-
+                _logger.error('Código de error: '+code+' Mensaje: '+msg)
             xml_signed = getattr(response, 'xml', None)
+
             ################################Para obtener el resultado de la firma
             if xml_signed:
+                _logger.warning(xml_signed)
                 xml_signed = base64.b64encode(xml_signed.encode('utf-8'))
             rec._post_sign_process(xml_signed, code, msg)
 
@@ -806,8 +700,9 @@ class AccountPayment(models.Model):
                 uuid_type.string = [uuid]
                 invoices_list = client.get_type('ns1:UUIDS')(uuid_type)
                 response = client.service.cancel(invoices_list, username, password, company_id.vat, cer_pem, key_pem)
+                _logger.warning(response)
             except Exception as e:
-                raise UserError(e)
+                _logger.error(e)
             if not (hasattr(response, 'Folios') and response.Folios):
                 msg = _('A delay of 2 hours has to be respected before to cancel')
             else:
@@ -816,46 +711,9 @@ class AccountPayment(models.Model):
                 # no show code and response message if cancel was success
                 code = '' if cancelled else code
                 msg = '' if cancelled else _("Cancelling got an error")
-                raise UserError('Código de error: '+code+' Mensaje: '+msg)
-            inv._post_cancel_process(cancelled, code, msg)
+                _logger.error('Código de error: '+code+' Mensaje: '+msg)
+            inv._post_cancel_process(response,cancelled, code, msg)
 
-    def _post_sign_process(self, xml_signed, code=None, msg=None):
-        """Post process the results of the sign service.
-
-        :param xml_signed: the xml signed datas codified in base64
-        :param code: an eventual error code
-        :param msg: an eventual error msg
-        """
-        # TODO - Duplicated
-        self.ensure_one()
-        if xml_signed:
-            body_msg = _('The sign service has been called with success')
-            # Update the pac status
-            self.cfd_mx_pac_status = 'signed'
-            self.cfd_mx_cfdi = xml_signed
-            # Update the content of the attachment
-            attachment_id = self.retrieve_last_attachment()
-            filename = ('%s-%s-MX-Payment-10.xml' % (
-                self.journal_id.code, self.name))
-            attachment_id.write({
-                'name': filename,
-                'datas_fname': filename,
-                'type': 'binary',
-                'res_id': self.id,
-                'res_model': self._name,
-                'description': _('Mexican CFDI to payment'),
-                'datas': xml_signed,
-                'mimetype': 'application/xml'
-            })
-            post_msg = [_('The content of the attachment has been updated')]
-        else:
-            body_msg = _('The sign service requested failed')
-            post_msg = []
-        if code:
-            post_msg.extend([_('Code: %s') % code])
-        if msg:
-            post_msg.extend([_('Message: %s') % msg])
-            
     def update_pac_status(self):
         """Synchronize both systems: Odoo & PAC if the invoices need to be
         signed or cancelled."""
@@ -902,7 +760,7 @@ class AccountPayment(models.Model):
                 status = response.xpath(
                     '//a:Estado', namespaces=namespace)
             except Exception as e:
-                raise UserError(str(e))
+                _logger.error(str(e))
                 rec.self.message_post(str(e))
             rec.cfd_mx_sat_status = CFDI_SAT_QR_STATE.get(
                 status[0] if status else '', 'none')
@@ -976,10 +834,8 @@ class AccountPayment(models.Model):
         key_pem = self.get_pem_key(company.cfd_mx_key, company.cfd_mx_key_password)
         
         private_key = crypto.load_privatekey(crypto.FILETYPE_PEM, key_pem)
-        #raise UserError(private_key)
         encrypt = 'sha256WithRSAEncryption'
         cadena_crypted = crypto.sign(private_key, cadena, b"sha256")
-        #raise UserError(cadena_crypted)
         return base64.b64encode(cadena_crypted)
 
     def generate_cadena(self, xslt_path, cfdi_as_tree):
@@ -1063,9 +919,7 @@ class AccountPayment(models.Model):
     @api.model
     def _get_cadena(self):
         self.ensure_one()
-        #get the xslt path
         xslt_path = CFDI_XSLT_CADENA_TFD
-        #get the cfdi as eTree
         cfdi = base64.decodestring(self.cfd_mx_cfdi)
         cfdi = self._get_xml_etree(cfdi)
         cfdi = self._get_tfd_etree(cfdi)

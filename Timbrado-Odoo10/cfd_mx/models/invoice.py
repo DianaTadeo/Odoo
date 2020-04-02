@@ -766,20 +766,21 @@ class AccountInvoice(models.Model):
         return True
 
     @api.multi
-    def action_invoice_cancel_cfdi_sat(self):
+    def action_invoice_cancel_cfdi_sat(self,result, msg):
         self.ensure_one()
         cfdi_params = {
             "uuid": self.cfdi_timbre_id.name,
             'noCertificado': self.cfdi_timbre_id.cfdi_certificate
         }
-        result = self.company_id.action_ws_finkok_sat('cancel', cfdi_params)
+        #result = self.company_id.action_ws_finkok_sat('cancel', cfdi_params)
         self.cfdi_timbre_id.write({
-            "cfdi_cancel_date_sat": result.get("Fecha"),
-            "cfdi_cancel_status_sat": result.get("EstatusCancelacion"),
-            "cfdi_cancel_code_sat": result.get("MsgCancelacion"),
-            "cfdi_cancel_state": result.get("Status")
+            "cfdi_cancel_date_sat": getattr(result,'Fecha', None),
+            "cfdi_state": 'Cancelado' if hasattr(result, 'Folios') else 'Vigente',
+            "cfdi_cancel_status_sat": msg,
+            "cfdi_cancel_code_sat": getattr(result.Folios.Folio[0], 'EstatusUUID', None),
+            "cfdi_cancel_state": getattr(result.Folios.Folio[0], 'EstatusCancelacion', None)
         })
-        if result.get("Acuse"):
+        if getattr(result,'Acuse'):
             Attachment = self.env['ir.attachment']
             fname = "cancelacion_cfd_%s.xml"%(self.cfdi_timbre_id.name or "")
             attachment_values = {
@@ -802,10 +803,13 @@ class AccountInvoice(models.Model):
     @api.multi
     def action_invoice_cancel_cfdi(self):
         self.ensure_one()
-        res=False
+        message=False
+        res= False
+        if not self.cfdi_timbre_id:
+            return self.action_invoice_cancel()
         try:
             res = self.with_context({'type': 'invoice'}).cancelation(self)
-
+            logging.info(res)
         except ValueError, e:
             message = str(e)
         except Exception, e:
@@ -814,10 +818,8 @@ class AccountInvoice(models.Model):
             self.message_post(body=message)
         if not res:
             return True
-        if res.get('Estado', '') == 'Cancelado':
-            self.action_invoice_cancel_cfdi_sat()
-            return self.action_invoice_cancel()
-        if not self.cfdi_timbre_id:
+        if getattr(res, 'Folios'):
+            self.action_invoice_cancel_cfdi_sat(res, message)
             return self.action_invoice_cancel()
         if not self.cfdi_is_required:
             return self.action_invoice_cancel()
@@ -836,8 +838,6 @@ class AccountInvoice(models.Model):
             self.message_post(
                 body='<p style="color:red">' + _('You cannot cancel an invoice which is partially paid. You need to cancel payment entries first ') + '</p>',
                 subtype='account.mt_invoice_validated')
-        
-        
         return True
 
     @api.multi
@@ -891,7 +891,6 @@ class AccountInvoice(models.Model):
                     amount_currency = sum([p.amount_currency for p in payment.matched_credit_ids if p.credit_move_id in self.move_id.line_ids])
                     if payment.matched_credit_ids:
                         payment_currency_id = all([p.currency_id == payment.matched_credit_ids[0].currency_id for p in payment.matched_credit_ids]) and payment.matched_credit_ids[0].currency_id or False
-                # get the payment value in invoice currency
                 if payment_currency_id and payment_currency_id == self.currency_id:
                     amount_to_show = amount_currency
                 else:                   
@@ -899,11 +898,8 @@ class AccountInvoice(models.Model):
                 if float_is_zero(amount_to_show, precision_rounding=self.currency_id.rounding):
                     continue
                 payment_ref = payment.move_id.name
-                #raise UserError(payment.move_id.name+'  '+str(amount_to_show))
                 if payment.move_id.ref:
                     payment_ref += ' (' + payment.move_id.ref + ')'
-                #raise UserError('Antes info')
-                #raise UserError(payment.name+'  '+payment.journal_id.name+'  '+str(amount_to_show)+'  '+currency_id.symbol+'  '+str([69, currency_id.decimal_places])+'  '+str(currency_id.position)+'  '+payment.date+'  '+str(payment.id)+'  '+str(payment.move_id.id))
                 info.append({
                     'name': payment.name,
                     'journal_name': payment.journal_id.name,
@@ -913,14 +909,10 @@ class AccountInvoice(models.Model):
                     'position': currency_id.position,
                     'date': payment.date,
                     'payment_id': payment.payment_id.id,
-                    #'payment_method_name': payment.payment_method_id.name if payment.journal_id.type == 'bank' else None,
                     'move_id': payment.move_id.id,
                     'ref': payment_ref,
                 })
             return info
- 
-
-
 
 class MailComposeMessage(models.TransientModel):
     _inherit = 'mail.compose.message'
@@ -935,8 +927,6 @@ class MailComposeMessage(models.TransientModel):
                 composition_mode, model, res_id)
         if self.env.context.get('active_model', False) == 'account.invoice':
             invoice = self.env["account.invoice"].browse(self.env.context['active_id'])
-            # if not invoice.number:
-            #     return res
             if invoice.number:
                 xml_name = "cfd_%s.xml"%invoice.number
             else:

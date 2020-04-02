@@ -16,15 +16,15 @@ Factura Electronica Mexico 3.3
     'author': 'OpenBIAS',
     'depends' : [
         'base',
+        'res_company_extended',
         'bias_base_report',
         'account',
         'account_cancel',
-        'res_company_extended',
-        'sales_team',
+        'sales_team'
     ],
     'data': [
-        #'security/cfd_mx_groups.xml',
-        #'security/ir.model.access.csv',
+        'security/cfd_mx_groups.xml',
+        'security/ir.model.access.csv',
         'data/account_invoice.sql',
 
         'data/xml/service_cron_data.xml',

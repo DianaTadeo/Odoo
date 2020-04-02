@@ -11,6 +11,8 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 from . import invoice_cfdi
+import logging
+_logger = logging.getLogger(__name__)
 
 class AccountPayment(models.Model):
     _name = 'account.payment'
@@ -85,7 +87,7 @@ class AccountPayment(models.Model):
                 'datas': xml_signed,
                 'mimetype': 'application/xml'
             })
-            post_msg = [_('The content of the attachment has been updated')]
+            _logger.warning('The content of the attachment has been updated')
         else:
             body_msg = _('The sign service requested failed')
             post_msg = []
@@ -93,3 +95,73 @@ class AccountPayment(models.Model):
             post_msg.extend([_('Code: %s') % code])
         if msg:
             post_msg.extend([_('Message: %s') % msg])
+            _logger.warning('Message: %s')
+
+
+    def _post_cancel_process(self, result, cancelled, code=None, msg=None):
+        '''Post process the results of the cancel service.
+
+        :param cancelled: is the cancel has been done with success
+        :param code: an eventual error code
+        :param msg: an eventual error msg
+        '''
+        self.ensure_one()
+        cfdi_params = {
+            "uuid": self.cfdi_timbre_id.name,
+            'noCertificado': self.cfdi_timbre_id.cfdi_certificate
+        }
+        #result = self.company_id.action_ws_finkok_sat('cancel', cfdi_params)
+        self.cfdi_timbre_id.write({
+            "cfdi_cancel_date_sat": getattr(result,'Fecha', None),
+            "cfdi_state": "Cancelado" if hasattr(result, 'Folios') else 'Vigente',
+            "cfdi_cancel_status_sat": msg,
+            "cfdi_cancel_code_sat": getattr(result.Folios.Folio[0], 'EstatusUUID', None),
+            "cfdi_cancel_state": getattr(result.Folios.Folio[0], 'EstatusCancelacion', None)
+        })
+        if getattr(result,'Acuse'):
+            Attachment = self.env['ir.attachment']
+            fname = "cancelacion_cfd_%s.xml"%(self.cfdi_timbre_id.name or "")
+            attachment_values = {
+                'name': fname,
+                'datas': base64.b64encode( result["Acuse"] ),
+                'datas_fname': fname,
+                'description': 'Cancelar Comprobante Fiscal Digital',
+                'res_model': "cfdi.timbres.sat",
+                'res_id': self.cfdi_timbre_id.id,
+                'type': 'binary'
+            }
+            Attachment.create(attachment_values)
+            attachment_values['res_model'] = self._name
+            attachment_values['res_id'] = self.id
+            Attachment.create(attachment_values)
+
+        if cancelled:
+            body_msg = _('The cancel service has been called with success')
+            _logger.warning(body_msg)
+            self.cfd_mx_pac_status = 'cancelled'
+            legal = _(
+                '''<h3 style="color:red">Legal warning</h3>
+                <p> Regarding the issue of the CFDI with' Complement for
+                receipt of payments', where there are errors in the receipt, this
+                may be canceled provided it is replaced by another with the correct data.
+                If the error consists in which the payment receipt
+                complement should not have been issued because the consideration
+                had already been paid in full; replaced by another with an
+                amount of one peso.</p>
+                <p><a href="http://www.sat.gob.mx/informacion_fiscal/factura_electronica/Documents/Complementoscfdi/Guia_comple_pagos.pdf">
+                For more information here (Pag. 5)</a></p>''')
+            self.message_post(body=legal)
+            _logger.warning(legal)
+        else:
+            body_msg = _('The cancel service requested failed')
+        post_msg = []
+        if code:
+            post_msg.extend([_('Code: %s') % code])
+        if msg:
+            post_msg.extend([_('Message: %s') % msg])
+            _logger.warning('Message: %s')
+
+
+
+
+

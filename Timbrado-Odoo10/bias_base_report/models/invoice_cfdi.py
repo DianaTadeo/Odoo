@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
-import subprocess
-import tempfile
+import subprocess#
+import tempfile#
 
 
 import odoo
@@ -12,7 +12,7 @@ from odoo.tools import DEFAULT_SERVER_TIME_FORMAT
 from odoo.tools.misc import DEFAULT_SERVER_DATETIME_FORMAT
 from amount_to_text_es_MX import *
 import requests
-import ssl
+import ssl#
 from lxml import etree#
 from lxml.objectify import fromstring#
 from requests import Request, Session
@@ -24,14 +24,15 @@ from pytz import timezone, utc
 import textwrap
 import base64, json
 import logging
-#from OpenSSL import crypto
 _logger = logging.getLogger(__name__)
+import re
+from unicodedata import normalize
 
 
 try:
     from OpenSSL import crypto
 except ImportError:
-    _logger.warning('OpenSSL library not found. If you plan to use l10n_mx_edi, please install the library from https://pypi.python.org/pypi/pyOpenSSL')
+    _logger.warning('OpenSSL library not found. If you plan to use this application, please install the library from https://pypi.python.org/pypi/pyOpenSSL')
 
 KEY_TO_PEM_CMD = 'openssl pkcs8 -in %s -inform der -outform pem -out %s -passin file:%s'
 CFDI_TEMPLATE = 'bias_base_report.cfdiv33'
@@ -45,6 +46,8 @@ catcfdi = {
     'ingreso': ['I','E','T','N','P'],
     'usoCdfi': ['G01','G02','G03','I01','I02','I03','I04','I05','I06','I07','I08','D01','D02','D03','D04','D05','D06','D07','D08','D09','D10','P01']
 }
+
+
 
 def get_format(xml):
     xml = xml.replace("<Comprobante", "<cfdi:Comprobante   xsi:schemaLocation=\"http://www.sat.gob.mx/cfd/3  http://www.sat.gob.mx/sitio_internet/cfd/3/cfdv33.xsd\" xmlns:cfdi=\"http://www.sat.gob.mx/cfd/3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"")
@@ -86,6 +89,8 @@ class AccountCfdi(models.Model):
             self.cant_letra = self.get_cant_letra(self.currency_id, total)
         else:
             self.cant_letra = ""
+
+    
 
     @api.one
     def _get_tipo_cambio(self):
@@ -163,7 +168,6 @@ class AccountCfdi(models.Model):
     sello = fields.Char(string="Sello", copy=False)
     cadena = fields.Text(string="Cadena original", copy=False)
     noCertificado = fields.Char(string="No. de serie del certificado", size=64, copy=False)
-    #hora = fields.Char(string="Hora", size=8, copy=False)
     
     uuid = fields.Char(string='Timbre fiscal', copy=False)
 
@@ -233,6 +237,7 @@ class AccountCfdi(models.Model):
 
         datas = json.dumps(self.cfdi_datas, sort_keys=True, indent=4, separators=(',', ': '))
         
+        logging.info(datas)
         data= {'record': self}
         cfdi = qweb.render(CFDI_TEMPLATE, values= data)
         cfdi = get_format(cfdi)
@@ -245,15 +250,13 @@ class AccountCfdi(models.Model):
         time_invoice = datetime.strptime(datetime_mx_tz,
                                          DEFAULT_SERVER_TIME_FORMAT).time()
         tree.attrib['Fecha']= datetime.combine(fields.Datetime.from_string(self.date_invoice), time_invoice).strftime('%Y-%m-%dT%H:%M:%S')
-       
-
         #Se genera el atributo de SELLO
         self.sello= self.get_sello(tree)
         tree.attrib["Sello"] = self.sello
         xml=etree.tostring(tree, pretty_print=True, xml_declaration=True, encoding='UTF-8')
         self.cfdi_xml= base64.encodestring(xml)
         vals = self._finkok_info(self.company_id, 'sign')
-        return self._finkok_sign(vals)#xml#cfdi
+        return self._finkok_sign(vals)
 
     def get_code_impuesto(self, name_impuesto):
         if "ISR" in name_impuesto:
@@ -377,10 +380,10 @@ class AccountCfdi(models.Model):
                 transport = Transport(timeout=20)
                 client = Client(url, transport=transport)
                 response = client.service.stamp(cfdi, username, password)
-                logging.info(response)
+                _logger.info(response)
             except Exception as e:
                 self.message_post(e)
-                logging.info(response)
+                _logger.error(e)
                 continue
             code = 0
             msg = None
@@ -388,11 +391,12 @@ class AccountCfdi(models.Model):
                 code = getattr(response.Incidencias.Incidencia[0], 'CodigoError', None)
                 msg = getattr(response.Incidencias.Incidencia[0], 'MensajeIncidencia', None)
                 self.message_post('Código de error: '+code+' - '+msg)
-                raise UserError('Código de error: '+code+' - '+msg)
             xml_signed = getattr(response, 'xml', None)
-            logging.info(xml_signed)
 
             if xml_signed:
+                fil= open('/tmp/signed.xml', 'w')
+                fil.write(xml_signed)
+                fil.close()
                 xml_signed = base64.b64encode(xml_signed.encode('utf-8'))
             return response
 
@@ -405,8 +409,6 @@ class AccountCfdi(models.Model):
         password = pac_info['password']
         for inv in self:
             uuid = inv.uuid
-            #certificate = inv.company_id.cer
-            #certificate_id = certificate_ids.sudo().get_valid_certificate()
             company_id = self.company_id
             cer_pem = self.get_pem_cer(
                 inv.company_id.cfd_mx_cer)
@@ -414,7 +416,7 @@ class AccountCfdi(models.Model):
                 inv.company_id.cfd_mx_key, inv.company_id.cfd_mx_key_password)
             cancelled = False
             code = False
-            #raise UserError(inv.company_id.cfd_mx_key_password+ ' --- '+ base64.b64encode(cer_pem)+ '---------' +base64.b64encode(key_pem))
+            response=None
             try:
                 transport = Transport(timeout=20)
                 client = Client(url, transport=transport)
@@ -423,10 +425,9 @@ class AccountCfdi(models.Model):
                 invoices_list = client.get_type('ns1:UUIDS')(uuid_type)
                 response = client.service.cancel(
                     invoices_list, username, password, company_id.vat, cer_pem, key_pem)
+                _logger.info(response)
             except Exception as e:
-                raise UserError(e)
-                #inv.l10n_mx_edi_log_error(str(e))
-                #continue
+                _logger.info(e)
             if not getattr(response, 'Folios', None):
                 code = getattr(response, 'CodEstatus', None)
                 msg = _("Cancelling got an error") if code else _('A delay of 2 hours has to be respected before to cancel')
@@ -437,6 +438,8 @@ class AccountCfdi(models.Model):
                 code = '' if cancelled else code
                 msg = '' if cancelled else _("Cancelling got an error")
             inv._post_cancel_process(cancelled, code, msg)
+            return response
+
 
 
     def _post_sign_process(self, xml_signed, code=None, msg=None):
@@ -467,21 +470,17 @@ class AccountCfdi(models.Model):
                 'description': 'FACTURA',
                 'mimetype': 'application/xml'
                 })
-            #raise UserError('Se creo attachment')
-            #attachment_id.write({
-            #    'datas': xml_signed,
-            #    'mimetype': 'application/xml'
-            #})
-            #xml_signed = self.l10n_mx_edi_append_addenda(xml_signed)
             post_msg = [_('The content of the attachment has been updated')]
 
         else:
             body_msg = _('The sign service requested failed')
             post_msg = []
         if code:
+            raise UserError('error?????CODE')
             post_msg.extend([_('Code: %s') % code])
             
         if msg:
+            raise UserError('error?????MENSAJE')
             post_msg.extend([_('Message: %s') % msg])
     
 
@@ -496,7 +495,6 @@ class AccountCfdi(models.Model):
         self.ensure_one()
         if cancelled:
             body_msg = _('The cancel service has been called with success')
-            #self.l10n_mx_edi_pac_status = 'cancelled'
         else:
             body_msg = _('The cancel service requested failed')
         post_msg = []
@@ -525,8 +523,6 @@ class AccountCfdi(models.Model):
             ('name', '=', self.cfdi_name)]
         
         obj = self.env['ir.attachment'].search(domain)
-        #raise UserError(obj)
-
     @api.model 
     def retrieve_last_attachment(self):
         attachment_ids = self.retrieve_attachments()
@@ -550,11 +546,8 @@ class AccountCfdi(models.Model):
 
 
     def get_sello(self,tree):
-        #tree= self.get_xml_etree(self.cfdi_xml)
-        #raise UserError(fromstring(base64.decodestring(self.cfdi_xml)))
         cadena= self.generate_cadena(CFDI_XSLT_CADENA, tree)
         self.cadena=cadena
-        #raise UserError(cadena)
         sello= self.sudo().get_encrypted_cadena(cadena)
         self.sello=sello
         return sello
@@ -565,10 +558,8 @@ class AccountCfdi(models.Model):
         key_pem = self.get_pem_key(self.company_id.cfd_mx_key, self.company_id.cfd_mx_key_password)
         
         private_key = crypto.load_privatekey(crypto.FILETYPE_PEM, key_pem)
-        #raise UserError(private_key)
         encrypt = 'sha256WithRSAEncryption'
         cadena_crypted = crypto.sign(private_key, cadena, b"sha256")
-        #raise UserError(cadena_crypted)
         return base64.b64encode(cadena_crypted)
 
     def get_pem_key(self, key, password):
@@ -615,9 +606,6 @@ class AccountCfdi(models.Model):
 
         mexican_tz = timezone('America/Mexico_City')
         mexican_dt= datetime.now(mexican_tz) 
-        
-        #mexican_dt = fields.Datetime.context_timestamp(
-        #    self.with_context(tz='America/Mexico_City'), fields.Datetime.now())
         date_format = '%Y%m%d%H%M%SZ'
 
         try:
@@ -627,8 +615,6 @@ class AccountCfdi(models.Model):
             after = mexican_tz.localize(
                 datetime.strptime(certificate.get_notAfter().decode("utf-8"), date_format))
             serial_number = certificate.get_serial_number()
-        #except except_orm as exc_orm:
-        #    raise exc_orm
         except Exception:
             raise ValidationError(_('The certificate content is invalid.'))
         # Assign extracted values from the certificate
@@ -745,71 +731,3 @@ class AccountCfdi(models.Model):
             new_withholding[tax['name']].update({'amount': new_withholding[
                 tax['name']]['amount'] + tax['amount']})
         return list(new_withholding.values())
-
-    """
-    def _l10n_mx_edi_create_cfdi_values(self):
-        '''Create the values to fill the CFDI template.
-        '''
-        self.ensure_one()
-        partner_id = self.partner_id
-        if self.partner_id.type != 'invoice':
-            partner_id = self.partner_id.commercial_partner_id
-        values = {
-            'record': self,
-            'currency_name': self.currency_id.name,
-            'supplier': self.company_id.partner_id.commercial_partner_id,
-            'issued': self.journal_id.l10n_mx_address_issued_id,
-            'customer': partner_id,
-            'fiscal_regime': self.company_id.l10n_mx_edi_fiscal_regime,
-            'payment_method': self.l10n_mx_edi_payment_method_id.code,
-            'use_cfdi': self.l10n_mx_edi_usage,
-            'conditions': self._get_string_cfdi(
-                self.invoice_payment_term_id.name, 1000) if self.invoice_payment_term_id else False,
-        }
-
-        values.update(self._l10n_mx_get_serie_and_folio(self.name))
-        ctx = dict(company_id=self.company_id.id, date=self.invoice_date)
-        mxn = self.env.ref('base.MXN').with_context(ctx)
-        invoice_currency = self.currency_id.with_context(ctx)
-        values['rate'] = ('%.6f' % (
-            invoice_currency._convert(1, mxn, self.company_id, self.invoice_date or fields.Date.today(), round=False))) if self.currency_id.name != 'MXN' else False
-
-        values['document_type'] = 'ingreso' if self.type == 'out_invoice' else 'egreso'
-        values['payment_policy'] = self._l10n_mx_edi_get_payment_policy()
-        domicile = self.journal_id.l10n_mx_address_issued_id or self.company_id
-        values['domicile'] = '%s %s, %s' % (
-                domicile.city,
-                domicile.state_id.name,
-                domicile.country_id.name,
-        )
-
-        values['decimal_precision'] = precision_digits
-        subtotal_wo_discount = lambda l: float_round(
-            l.price_subtotal / (1 - l.discount/100) if l.discount != 100 else
-            l.price_unit * l.quantity, int(precision_digits))
-        values['subtotal_wo_discount'] = subtotal_wo_discount
-        get_discount = lambda l, d: ('%.*f' % (
-            int(d), subtotal_wo_discount(l) - l.price_subtotal)) if l.discount else False
-        values['total_discount'] = get_discount
-        total_discount = sum([float(get_discount(p, precision_digits)) for p in self.invoice_line_ids])
-        values['amount_untaxed'] = '%.*f' % (
-            precision_digits, sum([subtotal_wo_discount(p) for p in self.invoice_line_ids]))
-        values['amount_discount'] = '%.*f' % (precision_digits, total_discount) if total_discount else None
-
-        values['taxes'] = self._l10n_mx_edi_create_taxes_cfdi_values()
-        values['amount_total'] = '%0.*f' % (precision_digits,
-            float(values['amount_untaxed']) - float(values['amount_discount'] or 0) + (
-                values['taxes']['total_transferred'] or 0) - (values['taxes']['total_withhold'] or 0))
-
-        values['tax_name'] = lambda t: {'ISR': '001', 'IVA': '002', 'IEPS': '003'}.get(t, False)
-
-        if self.l10n_mx_edi_partner_bank_id:
-            digits = [s for s in self.l10n_mx_edi_partner_bank_id.acc_number if s.isdigit()]
-            acc_4number = ''.join(digits)[-4:]
-            values['account_4num'] = acc_4number if len(acc_4number) == 4 else None
-        else:
-            values['account_4num'] = None
-
-        values.update(self._get_external_trade_values(values))
-        return values
-    """

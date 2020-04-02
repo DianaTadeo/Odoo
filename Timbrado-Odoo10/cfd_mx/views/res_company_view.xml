@@ -26,6 +26,8 @@
                             <group string="Timbrar">
                                 <field name="cfd_mx_test" />
                                 <field name="cfd_mx_pac" />
+                                <field name="cfd_mx_pac_password" />
+                                <field name="cfd_mx_pac_username" />
                                 <field name="cfd_mx_version" />
                                 <field name="cfd_mx_host" />
                                 <field name="cfd_mx_db" />
