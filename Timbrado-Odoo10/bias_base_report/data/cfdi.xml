@@ -31,25 +31,27 @@
                             </t>
                         </CfdiRelacionados>
 		                </t>
+                    <t t-set="nameE" t-value="record.remove_especiales(record.company_id.name)"/>
                     <Emisor
                         t-att-Rfc="record.company_id.vat"
-                        t-att-Nombre="record.company_id.name"
+                        t-att-Nombre="nameE"
                         t-att-RegimenFiscal="record.company_id.cfd_mx_fiscal_regime"/>
-                    <Receptor
-                        t-att-Rfc="record.partner_id.vat"
-                        t-att-Nombre="record.partner_id.name"
-                        t-att-ResidenciaFiscal="record.partner_id.zip if record.partner_id.country_id.code_alpha3 != 'MEX' else False"
-                        t-att-NumRegIdTrib="record.partner_id.vat if record.partner_id.country_id.code_alpha3 != 'MEX' else False"
-                        t-att-UsoCFDI="record.usocfdi_id.clave"/>
+                    <t t-set="nameR" t-value="record.remove_especiales(record.partner_id.name)"/>
+                    <Receptor 
+                        t-att-Rfc="record._get_customer_rfc()" 
+                        t-att-Nombre="nameR" 
+                        t-att-ResidenciaFiscal="record.partner_id.country_id.code_alpha3 if record.partner_id.country_id.code_alpha3 != 'MEX' else False" 
+                        t-att-NumRegIdTrib="record.partner_id.vat if record.partner_id.country_id.code_alpha3 != 'MEX' else False" t-att-UsoCFDI="record.usocfdi_id.clave"/>
                     <Conceptos>
                     <t t-foreach="record.invoice_line_ids" t-as="line">
+                        <t t-set="description" t-value="record.remove_especiales(line.name) if line.name else record.remove_especiales(line.product_id.name)"/>
                         <Concepto
                             t-att-ClaveProdServ="line.product_id.clave_prodser_id.clave"
                             t-att-NoIdentificacion="line.product_id.code"
                             t-att-Cantidad="'%.6f' % (line.quantity)"
                             t-att-ClaveUnidad="line.uom_id.clave_unidadesmedida_id.clave"
                             t-att-Unidad="line.uom_id.name"
-                            t-att-Descripcion="line.product_id.name"
+                            t-att-Descripcion="description"
                             t-att-ValorUnitario="'%.2f' % (line.price_unit)"
                             t-att-Importe="'%.2f' % (line.price_subtotal)"
                             t-att-Descuento="line.discount">
@@ -63,7 +65,7 @@
                                         <Traslados>
                                             <t t-foreach="transferred" t-as="tax">
                                                 <t t-set="tasa" t-value="'%.6f' % abs(tax.amount if tax.amount_type == 'fixed' else (tax.amount / 100.0))"/>
-                                                <t t-set="code_imp" t-value="record.get_code_impuesto(tax.name)"/>
+                                                <t t-set="code_imp" t-value="tax.tax_group_id.cfdi_impuestos"/>
                                                 <Traslado
                                                     t-att-Base="'%.2f' % (line.price_unit* line.quantity)"
                                                     t-att-Impuesto="code_imp"
@@ -78,13 +80,13 @@
                                             <t t-foreach="withholding" t-as="tax">
                                                 <t t-set="tag_name" t-value="tax.tag_ids.filtered(lambda r: 'Factor:' not in r.name)"/>
                                                 <t t-set="tasa" t-value="'%.6f' % abs(tax.amount if tax.amount_type == 'fixed' else (tax.amount / 100.0))"/>
-                                                <t t-set="code_imp" t-value="record.get_code_impuesto(tax.name)"/>
+                                                <t t-set="code_imp" t-value="tax.tax_group_id.cfdi_impuestos"/>
                                                 <Retencion
                                                     t-att-Base="'%.2f' % (record.amount_untaxed)"
                                                     t-att-Impuesto="code_imp"
                                                     t-att-TipoFactor="tax.cfdi_tipofactor"
                                                     t-att-TasaOCuota="tasa"
-                                                    t-att-Importe="'%.2f' % ((tax.amount / 100.0)*record.amount_untaxed) if tax.type_tax_use != 'Exento' else False"/>
+                                                    t-att-Importe="'%.2f' % ((abs(tax.amount) / 100.0)*record.amount_untaxed) if tax.type_tax_use != 'Exento' else False"/>
                                             </t>
                                         </Retenciones>
                                     </t>
@@ -122,16 +124,17 @@
                         <t t-if="withholding">
                             <Retenciones>
                                 <t t-foreach="withholding" t-as="withhold">
+                                    <t t-set="code_imp" t-value="withhold['group_type']"/>
                                     <Retencion
                                         t-att-Importe="'%.2f' % (withhold['amount'] if withhold['amount'] else 0.00)"
-                                        t-att-Impuesto="tax_name(withhold['name'])"/>
+                                        t-att-Impuesto="code_imp"/>
                                 </t>
                             </Retenciones>
                         </t>
                         <t t-if="transferred">
                             <Traslados>
                                 <t t-foreach="transferred" t-as="transfer">
-                                    <t t-set="code_imp" t-value="record.get_code_impuesto(transfer['group'])"/>
+                                    <t t-set="code_imp" t-value="transfer['group_type']"/>
                                     <Traslado
                                         t-att-Importe="'%.2f' % (transfer['amount'] if transfer['amount'] else 0.00)" 
                                         t-att-Impuesto="code_imp"

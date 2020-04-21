@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<odoo>
+    <record model="ir.ui.view" id="view_account_payment_form_timbre_cfd_mx">
+        <field name="name">view.account.payment.form.timbre.cfd.mx</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="bias_base_report.view_account_payment_form_inh_cfd_mx"/>
+        <field name="arch" type="xml">
+            <data>
+                <xpath expr="//field[@name='cfd_mx_pac_status']" position="after">
+                    <field name="cfdi_timbre_id"/>
+                </xpath>
+            </data>
+        </field>
+    </record>
+    
+</odoo>

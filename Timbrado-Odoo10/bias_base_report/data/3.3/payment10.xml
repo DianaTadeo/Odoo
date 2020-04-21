@@ -24,14 +24,16 @@
                     </t>
                 </CfdiRelacionados>
             </t>
+            <t t-set="nombreE" t-value="record.remove_especiales(supplier.name)"/>
             <Emisor
                 t-att-Rfc="supplier.vat"
-                t-att-Nombre="supplier.name"
-                t-att-RegimenFiscal="supplier.regimen_id.clave"/>
+                t-att-Nombre="nombreE"
+                t-att-RegimenFiscal="record.company_id.cfd_mx_fiscal_regime"/>
+            <t t-set="nombreR" t-value="record.remove_especiales(customer.commercial_partner_id.name)"/>
             <Receptor
-                t-att-Rfc="customer.commercial_partner_id.vat"
-                t-att-Nombre="customer.commercial_partner_id.name"
-                t-att-ResidenciaFiscal="customer.commercial_partner_id.zip if customer.commercial_partner_id.country_id.code_alpha3 != 'MEX' else False"
+                t-att-Rfc="record._get_customer_rfc()" 
+                t-att-Nombre="nameR" 
+                t-att-ResidenciaFiscal="customer.country_id.code_alpha3 if record.partner_id.country_id.code_alpha3 != 'MEX' else False" 
                 t-att-NumRegIdTrib="customer.commercial_partner_id.vat if customer.commercial_partner_id.country_id.code_alpha3 != 'MEX' else False"
                 UsoCFDI="P01"/>
             <Conceptos>
@@ -70,6 +72,7 @@
                             <t t-set="amount" t-value="[p for p in invoice._get_invoice_payment_info_JSON() if (p.get('account_payment_id', False) == record.id or not p.get('account_payment_id') and (not p.get('invoice_id') or p.get('invoice_id') == invoice.id))]"/>
                             <t t-set="amount_payment" t-value="sum([data.get('amount', 0.0) for data in amount])"/>
                             <t t-set="amount_insoluto" t-value="invoice.residual"/>
+                            <t t-set="num_parcialidad" t-value="record.get_numParcialidad(invoice)"/>
                             <DoctoRelacionado
                                 t-att-IdDocumento="invoice.uuid"
                                 t-att-Serie="invoice.internal_number[:8]"
@@ -77,10 +80,10 @@
                                 t-att-MonedaDR="invoice.currency_id.name"
                                 t-att-TipoCambioDR="inv_rate if record.currency_id != invoice.currency_id else False"
                                 t-att-MetodoDePagoDR="invoice.get_payment_method_cfdi()"
-                                t-att-NumParcialidad="0"
+                                t-att-NumParcialidad="num_parcialidad"
                                 t-att-ImpSaldoAnt="'%0.*f' % (decimal_precision, invoice.residual + amount_payment)"
-                                t-att-ImpPagado="'%0.*f' % (decimal_precision, amount_payment - (writeoff_vals.get(invoice.id, 0) if invoice.currency_id == record.currency_id else 0))"
-                                t-att-ImpSaldoInsoluto="'%0.*f' % (decimal_precision, amount_insoluto + (writeoff_vals.get(invoice.id, 0) if invoice.currency_id == record.currency_id else 0))"/>
+                                t-att-ImpPagado="'%0.*f' % (decimal_precision, record.amount  if invoice.currency_id == record.currency_id else 0)"
+                                t-att-ImpSaldoInsoluto="'%0.*f' % (decimal_precision, invoice.residual + amount_payment-record.amount if invoice.currency_id == record.currency_id else 0)"/>
                         </t>
                         <t t-if="total_transferred or total_withhold">
                             <Impuestos

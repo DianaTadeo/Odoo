@@ -420,22 +420,24 @@ class AccountInvoice(models.Model):
         if not self.usocfdi_id:
             message += '<li>No se definio Uso CFDI</li>'
         regimen_id = self.company_id.partner_id.regimen_id
-        if not regimen_id:
-            message += u'<li>No se definio Regimen Fiscal para la Compañia</li>'
+        #if not regimen_id:
+        #    message += u'<li>No se definio Regimen Fiscal para la Compañia</li>'
         if not tz:
             message += '<li>El usuario no tiene definido Zona Horaria</li>'
         if not self.partner_id.vat:
             message += '<li>No se especifico el RFC para el Cliente</li>'
         if not self.company_id.partner_id.vat:
             message += '<li>No se especifico el RFC para la Empresa</li>'
+        if not self.partner_id.country_id.code_alpha3:
+            message += '<li>No se ha configurado el codigo alpha3 del pais del cliente.</li>'
         for line in self.invoice_line_ids:
             if line.price_unit == 0.0:
                 message += '<li>El Valor Unitario debe ser mayor a 0.0</li>'
             if not line.uom_id.clave_unidadesmedida_id.clave:
                 message += '<li>Favor de Configurar la Clave Unidad SAT "%s"</li>'%(line.uom_id.name)
-            # for tax in line.invoice_line_tax_ids:
-            #     if not tax.tax_group_id.cfdi_impuestos:
-            #         message += '<li>El impuesto %s no tiene categoria CFD</li>'%()
+            for tax in line.invoice_line_tax_ids:
+                if not tax.tax_group_id.cfdi_impuestos:
+                    message += '<li>El impuesto %s no tiene configurado el campo "CFDI Catalogo de Impuestos"</li>'%(tax.tax_group_id.name)
         self.with_context(**context).action_raise_message(message)
         return message
 

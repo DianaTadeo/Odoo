@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp>
+    <data>
+        <record id="certificate_list_action" model="ir.actions.act_window">
+            <field name="name">certificates</field>
+            <field name="res_model">cfd_mx.certificate</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p>Create the first certificate</p>
+            </field> 
+        </record>
+
+        <record id="certificate_form_view" model="ir.ui.view">
+            <field name="name">certificate.form</field>
+            <field name="model">cfd_mx.certificate</field>
+            <field name="arch" type="xml">
+                <form string="certificate Form">
+                    <sheet>
+                        <group>
+                            <field name="cer"/>
+                            <field name="key"/>
+                            <field name="key_password" password="True"/>
+                            <label for="start_date" string="Validity"/>
+                            <div>
+                                <field name="start_date"/> -
+                               <field name="end_date"/>
+                            </div>
+                            <field name="serial_number"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="certificate_search_view" model="ir.ui.view">
+            <field name="name">certificate.search</field>
+            <field name="model">cfd_mx.certificate</field>
+            <field name="arch" type="xml">
+                <search>
+                    <field name="serial_number"/>
+                </search>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="certificate_tree_view">
+            <field name="name">certificate.tree</field>
+            <field name="model">cfd_mx.certificate</field>
+            <field name="arch" type="xml">
+                <tree string="certificate Tree">
+                    <field name="serial_number"/>
+                    <field name="start_date"/>
+                    <field name="end_date"/>
+                </tree>
+            </field>
+        </record>
+    </data>
+</openerp>

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+
+
+        <record model="ir.ui.view" id="view_partner_cfdi_categ_form">
+            <field name="name">view_partner_cfdi_categ_form</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <data>
+                    <notebook position="inside">
+                        <page string="CFDI" name="cfdi">
+                            <group>
+                                <group>
+                                    <field name="regimen_id" string="Régimen Fiscal"/>
+                                    <field name="usocfdi_id" string="Uso CFDI"/>
+                                    <field name="formapago_id"/>
+                                    <field name="metodopago_id" />
+                                    <field name="cfdi_addenda" />
+                                </group>
+                                <group>
+                                    <field name="es_personafisica" />
+                                    <field name="es_extranjero" />
+                                    <field name="identidad_fiscal" string="Identidad Fiscal" groups="cfd_mx.group_cfd_mx_manager"/>
+                                    <field name="curp" />
+                                    <field name="xml_cfdi_sinacento"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </data>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="view_partner_cfdi_street_form">
+            <field name="name">view_partner_cfdi_street_form</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <data>
+                    <field name="street" position="after">
+                        <field name="noExterior" 
+                            placeholder="No. ext." class="o_address_city"
+                            attrs="{'readonly': [('type', '=', 'contact'),('parent_id', '!=', False)]}"/>
+                        <field name="noInterior" 
+                            placeholder="No. int." class="o_address_city"
+                            attrs="{'readonly': [('type', '=', 'contact'),('parent_id', '!=', False)]}"/>
+                    </field>
+                </data>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="view_partner_cfdi_street2_form">
+            <field name="name">view_partner_cfdi_street2_form</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <data>
+                    <field name="street2" position="attributes">
+                        <attribute name="placeholder">Colonia:</attribute>
+                    </field>
+                </data>
+            </field>
+        </record>
+
+        <!-- EMPRESAS -->
+        <record model="ir.ui.view" id="view_partner_mx_form">
+            <field name="name">res.partner.mx.form</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//form/sheet/group/group[2]/field[@name='phone']" position="after">
+                    <field name="extension_phone" />
+                </xpath>
+                <xpath expr="//form/sheet/notebook/page/field[@name='child_ids']/kanban/field[@name='phone']" position="after">
+                    <field name="extension_phone" />
+                </xpath>
+                <xpath expr="//form/sheet/notebook/page/field[@name='child_ids']/kanban/templates/t/div/div[2]/div[4]" position="after">
+                    <div t-if="record.extension_phone.raw_value">Ext.: <field name="extension_phone"/></div>
+                </xpath>
+                <xpath expr="//form/sheet/notebook/page/field[@name='child_ids']/form/sheet//field[@name='phone']" position="after">
+                    <field name="extension_phone" />
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_partner_mx_tree" model="ir.ui.view">
+            <field name="name">res.partner.tree</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_tree"/>
+            <field name="arch" type="xml">
+                <field name="phone" position="after">
+                    <field name="extension_phone" />
+                </field>
+            </field>
+        </record>
+
+        <record id="view_partner_simple_mx_form" model="ir.ui.view">
+            <field name="name">res.partner.simplified.mx.form</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_simple_form"/>
+            <field name="arch" type="xml">
+                <field name="phone" position="after">
+                    <field name="extension_phone" />
+                </field>
+            </field>
+        </record>
+
+        <record id="res_partner_view_form_mx_private" model="ir.ui.view">
+            <field name="name">res.partner.view.form.mx.private</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_simple_form"/>
+            <field name="arch" type="xml">
+                <field name="phone" position="after">
+                    <field name="extension_phone" />
+                </field>
+            </field>
+        </record>
+
+    </data>
+</openerp>
+
+

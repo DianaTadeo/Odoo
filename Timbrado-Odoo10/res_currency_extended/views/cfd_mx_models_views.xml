@@ -1,0 +1,570 @@
+<odoo>
+    <data>
+
+        <record id="cfdi_manifiesto_pac_view_form" model="ir.ui.view">
+            <field name="name">cfdi_manifiesto_pac_view_form</field>
+            <field name="model">cfdi.manifiesto.pac</field>
+            <field name="arch" type="xml">
+                <form string="Manifiesto PAC" create="false" delete="false">
+                    <header>
+                        <button name="action_get_contracts" type="object" string="Ver Contratos PAC" class="oe_highlight" />
+                        <button name="action_sign_contract" type="object" string="Firmar Aviso" class="oe_highlight" />
+                    </header>
+                    <sheet string="Manifiesto PAC">
+                        
+                        <fiel name="privacy_b64" invisible="1" />
+                        <fiel name="contract_b64" invisible="1" />
+                        <group>
+                            <group>
+                                <field name="company_id" readonly="1" />
+                                <field name="date_signed_contract" readonly="1" />
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Aviso Privacidad">
+                                <group>
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-2">
+                                                <br />
+                                            </div>
+                                            <div class="col-8">
+                                                <field name="privacy_txt" readonly="1" placeholder="Additional notes..."/>
+                                            </div>
+                                            <div class="col-2">
+                                                <br />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </group>
+                            </page>
+                            <page string="Contrato de Servicio">
+                                <group>
+                                    <div class="container">
+                                        <div class="row">
+                                            <div class="col-2">
+                                                <br />
+                                            </div>
+                                            <div class="col-8">
+                                                <field name="contract_txt" readonly="1" placeholder="Additional notes..."/>
+                                            </div>
+                                            <div class="col-2">
+                                                <br />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </group>
+                                
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+        <record id="cfdi_manifiesto_pac_view_tree" model="ir.ui.view">
+            <field name="name">cfdi_manifiesto_pac_view_tree</field>
+            <field name="model">cfdi.manifiesto.pac</field>
+            <field name="arch" type="xml">
+                <tree string="Manifiesto PAC" create="true" delete="true">
+                    <field name="company_id" />
+                    <button name="action_get_contracts" type="object" string="Ver Contratos PAC" class="oe_highlight" />
+                    <button name="action_sig_privacy" type="object" string="Firmar Aviso" class="oe_highlight" />
+                    <button name="action_sig_contract" type="object" string="Firmar Contrato" class="oe_highlight" />
+                </tree>
+            </field>
+        </record>
+        <record id="action_cfdi_manifiesto_pac" model="ir.actions.act_window">
+            <field name="name">Manifiesto PAC</field>
+            <field name="res_model">cfdi.manifiesto.pac</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">list,form</field>
+        </record>
+        <menuitem 
+            action="action_cfdi_manifiesto_pac" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="group_cfd_mx_user"
+            id="menu_cfdi_manifiesto_pac" sequence="80" />
+
+        <!-- CATALOGO USO CFDI -->
+        <record id="cfdi_timbres_sat_view_form" model="ir.ui.view">
+            <field name="name">cfdi_timbres_sat_view_form</field>
+            <field name="model">cfdi.timbres.sat</field>
+            <field name="arch" type="xml">
+                <form string="Timbres SAT" create="false" delete="false">
+                    <header>
+                        <button name="action_verificacfdi" type="object" string="Verifica CFDI SAT" class="oe_highlight" />
+                    </header>
+                    <sheet string="Timbres SAT">
+                        <group col="4">
+                            <field name="invoice_id" />
+                            <field name="payment_id" />
+                            <field name="cfdi_type" />
+                            <field name="name"/>
+                            <field name="company_id" />
+                            <field name="partner_id" />
+                            <field name="journal_id" />
+                            <field name="cfdi_supplier_rfc" />
+                            <field name="cfdi_customer_rfc" />
+                            <field name="cfdi_pac_rfc" />
+                            <field name="cfdi_amount" />
+                            <field name="cfdi_certificate" />
+                            <field name="cfdi_certificate_sat" />
+                            <field name="time_invoice" />
+                            <field name="time_invoice_sat" />
+                            <field name="cfdi_state" />
+                            <field name="cfdi_code_sat" />
+                            <field name="test" />
+                        </group>
+                        <group  col="4">
+                            <field name="cfdi_cancel_date_rev" invisible="0" />
+                            <field name="cfdi_cancel_escancelable_sat" />
+                            <field name="cfdi_cancel_date_sat" />
+                            <field name="cfdi_cancel_status_sat" />
+                            <field name="cfdi_cancel_code_sat" />
+                            <field name="cfdi_cancel_state" />
+                        </group>
+                    </sheet>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids" widget="mail_followers"/>
+                        <field name="message_ids" widget="mail_thread"/>
+                    </div>
+                </form>
+            </field>
+        </record>
+        <record id="cfdi_timbres_sat_view_tree" model="ir.ui.view">
+            <field name="name">cfdi_timbres_sat_view_tree</field>
+            <field name="model">cfdi.timbres.sat</field>
+            <field name="arch" type="xml">
+                <tree string="Timbres SAT" colors="red:cfdi_state=='cancelled';blue:cfdi_state=='Vigente' ">
+                    <field name="cfdi_type" />
+                    <field name="test" />
+                    <field name="cfdi_state" />
+                    <field name="name"/>
+                    <field name="cfdi_supplier_rfc" />
+                    <field name="cfdi_customer_rfc" />
+                    <field name="cfdi_pac_rfc" />
+                    <field name="cfdi_amount" />
+                    <field name="cfdi_certificate" />
+                    <field name="cfdi_certificate_sat" />
+                    <field name="time_invoice" />
+                    <field name="time_invoice_sat" />
+                </tree>
+            </field>
+        </record>
+        <record id="cfdi_timbres_sat_view_filter" model="ir.ui.view">
+            <field name="name">cfdi_timbres_sat_view_filter</field>
+            <field name="model">cfdi.timbres.sat</field>
+            <field name="arch" type="xml">
+                <search string="Timbres SAT">
+                    <field name="name" string="CFDI" filter_domain="['|','|','|', ('cfdi_type','ilike',self), ('name','ilike',self), ('cfdi_supplier_rfc', 'ilike', self), ('cfdi_customer_rfc', 'ilike', self)]"/>
+                    <separator/>
+                    <filter name="ingreso" string="Ingreso" domain="[('cfdi_type','=','I')]"/>
+                    <filter name="egreso" string="Egreso" domain="[('cfdi_type','=','E')]"/>
+                    <filter name="pagos" string="Pagos" domain="[('cfdi_type','=','P')]"/>
+                    <group expand="0" string="Group By">
+                        <filter name="cfdi_type" string="Type" context="{'group_by':'cfdi_type'}"/>
+                        <filter name="cfdi_state" string="State" context="{'group_by':'cfdi_state'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+        <record id="action_cfdi_timbres_sat" model="ir.actions.act_window">
+            <field name="name">Timbres SAT</field>
+            <field name="res_model">cfdi.timbres.sat</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">tree</field>
+            <field name="view_mode">list,form</field>
+        </record>
+        <menuitem 
+            action="action_cfdi_timbres_sat" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="group_cfd_mx_user"
+            id="menu_cfdi_timbres_sat" sequence="80" />
+
+        <!-- CATALOGO USO CFDI -->
+        <record id="uso_cfdi_view_tree" model="ir.ui.view">
+            <field name="name">uso_cfdi_view_tree</field>
+            <field name="model">cfd_mx.usocfdi</field>
+            <field name="arch" type="xml">
+                <tree string="Uso CFDI">
+                    <field name="clave"/>
+                    <field name="name"/>
+                </tree>
+            </field>
+        </record>
+        <record id="action_uso_cfdi" model="ir.actions.act_window">
+            <field name="name">Uso CFDI</field>
+            <field name="res_model">cfd_mx.usocfdi</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">tree</field>
+            <field name="view_mode">list,form</field>
+            <field name="target"></field>
+        </record>
+        <menuitem 
+            action="action_uso_cfdi" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="group_cfd_mx_user"
+            id="menu_uso_cfdi" sequence="90" />
+
+        <!-- CATALOGO PRODUCTOS/SERVICIOS CFDI -->
+        <record id="clave_prodserv_view_tree" model="ir.ui.view">
+            <field name="name">clave.prodserv.view.tree</field>
+            <field name="model">cfd_mx.prodserv</field>
+            <field name="arch" type="xml">
+                <tree string="Productos y Servicios">
+                    <field name="clave"/>
+                    <field name="name"/>
+                </tree>
+            </field>
+        </record>
+        <record id="clave_prodserv_view_filter" model="ir.ui.view">
+            <field name="name">clave.prodserv.view.search</field>
+            <field name="model">cfd_mx.prodserv</field>
+            <field name="arch" type="xml">
+                <search string="Productos y Servicios">
+                    <field name="name" string="Name" filter_domain="['|',('clave','ilike',self),('name','ilike',self)]"/>
+                </search>
+            </field>
+        </record>
+        <record id="action_clave_prodserv" model="ir.actions.act_window">
+            <field name="name">Productos y Servicios</field>
+            <field name="res_model">cfd_mx.prodserv</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">tree</field>
+            <field name="view_mode">list,form</field>
+            <field name="target"></field>
+        </record>
+        <menuitem
+            action="action_clave_prodserv" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="group_cfd_mx_user"
+            id="menu_clave_prodserv"
+            sequence="91" />
+
+        <!-- CATALOGO UNIDADES DE MEDIDAS CFDI -->
+        <record id="unidades_medida_view_tree" model="ir.ui.view">
+            <field name="name">unidades_medida_view_tree</field>
+            <field name="model">cfd_mx.unidadesmedida</field>
+            <field name="arch" type="xml">
+                <tree string="Unidades de Medida CFDI">
+                    <field name="clave"/>
+                    <field name="name"/>
+                    <field name="descripcion" />
+                    <field name="simbolo" />
+                </tree>
+            </field>
+        </record>
+        <record id="unidades_medida_view_filter" model="ir.ui.view">
+            <field name="name">unidades_medida_view.search</field>
+            <field name="model">cfd_mx.unidadesmedida</field>
+            <field name="arch" type="xml">
+                <search string="Unidades de Medida CFDI">
+                    <field name="name" string="Name" filter_domain="['|',('clave','ilike',self),('name','ilike',self)]"/>
+                </search>
+            </field>
+        </record>
+        <record id="action_unidades_medida" model="ir.actions.act_window">
+            <field name="name">Unidades de Medida CFDI</field>
+            <field name="res_model">cfd_mx.unidadesmedida</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">tree</field>
+            <field name="view_mode">list,form</field>
+            <field name="target"></field>
+        </record>
+        <menuitem
+            action="action_unidades_medida" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="group_cfd_mx_user"
+            id="menu_unidades_medida"
+            sequence="92" />
+
+        <!-- CATALOGO FORMAS DE PAGO -->
+        <record id="formapago_view_tree" model="ir.ui.view">
+            <field name="name">formapago_view_tree</field>
+            <field name="model">cfd_mx.formapago</field>
+            <field name="arch" type="xml">
+                <tree string="Formas de Pago">
+                    <field name="clave"/>
+                    <field name="name"/>
+                    <field name="banco"/>
+                </tree>
+            </field>
+        </record>
+        <record id="formapago_view_filter" model="ir.ui.view">
+            <field name="name">formapago_view.search</field>
+            <field name="model">cfd_mx.formapago</field>
+            <field name="arch" type="xml">
+                <search string="Formas de Pago">
+                    <field name="name" string="Name" filter_domain="['|',('clave','ilike',self),('name','ilike',self)]"/>
+                </search>
+            </field>
+        </record>
+        <record id="action_formapago" model="ir.actions.act_window">
+            <field name="name">Formas de Pago</field>
+            <field name="res_model">cfd_mx.formapago</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">tree</field>
+            <field name="view_mode">list,form</field>
+            <field name="target"></field>
+        </record>
+        <menuitem
+            action="action_formapago" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="group_cfd_mx_user"
+            id="menu_formapago"
+            sequence="93" />
+
+        <!-- CATALOGO METODO DE PAGO -->
+        <record id="metodopago_view_tree" model="ir.ui.view">
+            <field name="name">metodopago_view_tree</field>
+            <field name="model">cfd_mx.metodopago</field>
+            <field name="arch" type="xml">
+                <tree string="Metodo de Pago">
+                    <field name="clave"/>
+                    <field name="name"/>
+                </tree>
+            </field>
+        </record>
+        <record id="metodopago_view_filter" model="ir.ui.view">
+            <field name="name">metodopago_view.search</field>
+            <field name="model">cfd_mx.metodopago</field>
+            <field name="arch" type="xml">
+                <search string="Metodo de Pago">
+                    <field name="name" string="Name" filter_domain="['|',('clave','ilike',self),('name','ilike',self)]"/>
+                </search>
+            </field>
+        </record>
+        <record id="action_metodopago" model="ir.actions.act_window">
+            <field name="name">Metodo de Pago</field>
+            <field name="res_model">cfd_mx.metodopago</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">tree</field>
+            <field name="view_mode">list,form</field>
+            <field name="target"></field>
+        </record>
+        <menuitem
+            action="action_metodopago" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="group_cfd_mx_user"
+            id="menu_metodopago"
+            sequence="94" />
+
+        <!-- CATALOGO REGIMEN FISCAL -->
+        <record id="regimen_view_tree" model="ir.ui.view">
+            <field name="name">regimen_view_tree</field>
+            <field name="model">cfd_mx.regimen</field>
+            <field name="arch" type="xml">
+                <tree string="Regimen Fiscal">
+                    <field name="clave"/>
+                    <field name="name"/>
+                    <field name="persona_fisica"/>
+                    <field name="persona_moral"/>
+                </tree>
+            </field>
+        </record>
+        <record id="regimen_view_filter" model="ir.ui.view">
+            <field name="name">regimen_view.search</field>
+            <field name="model">cfd_mx.regimen</field>
+            <field name="arch" type="xml">
+                <search string="Regimen Fiscal">
+                    <field name="name" string="Name" filter_domain="['|',('clave','ilike',self),('name','ilike',self)]"/>
+                </search>
+            </field>
+        </record>
+        <record id="action_regimen" model="ir.actions.act_window">
+            <field name="name">Regimen Fiscal</field>
+            <field name="res_model">cfd_mx.regimen</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">tree</field>
+            <field name="view_mode">list,form</field>
+            <field name="target"></field>
+        </record>
+        <menuitem
+            action="action_regimen" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="group_cfd_mx_user"
+            id="menu_regimen"
+            sequence="95" />
+
+        <!-- CATALOGO ADUANAS -->
+        <record id="aduana_view_tree" model="ir.ui.view">
+            <field name="name">aduana_view_tree</field>
+            <field name="model">cfd_mx.aduana</field>
+            <field name="arch" type="xml">
+                <tree string="Aduanas">
+                    <field name="clave"/>
+                    <field name="name"/>
+                </tree>
+            </field>
+        </record>
+        <record id="aduana_view_filter" model="ir.ui.view">
+            <field name="name">aduana_view.search</field>
+            <field name="model">cfd_mx.aduana</field>
+            <field name="arch" type="xml">
+                <search string="Aduanas">
+                    <field name="name" string="Name" filter_domain="['|',('clave','ilike',self),('name','ilike',self)]"/>
+                </search>
+            </field>
+        </record>
+        <record id="action_aduana" model="ir.actions.act_window">
+            <field name="name">Aduanas</field>
+            <field name="res_model">cfd_mx.aduana</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">tree</field>
+            <field name="view_mode">list,form</field>
+            <field name="target"></field>
+        </record>
+        <menuitem
+            action="action_aduana" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="group_cfd_mx_user"
+            id="menu_aduana"
+            sequence="100" />
+
+
+        <!-- ADDENDAS -->
+        <record id="conf_addenda_view_form" model="ir.ui.view">
+            <field name="name">conf.addenda.form.view</field>
+            <field name="model">cfd_mx.conf_addenda</field>
+            <field name="arch" type="xml">
+                <form string="Configuración Addenda">
+                    <group>
+                        <field name="model_selection" />
+                        <field name="company_id" />
+                        <field name="partner_ids"/>
+                    </group>
+                    <group>
+                        <field name="name" />
+                    </group>
+                </form>
+            </field>
+        </record>
+        <record id="conf_addenda_view_tree" model="ir.ui.view">
+            <field name="name">conf.conf_addenda.tree.view</field>
+            <field name="model">cfd_mx.conf_addenda</field>
+            <field name="arch" type="xml">
+                <tree string="Configuración">
+                    <field name="model_selection" />
+                    <field name="company_id" />
+                    <field name="partner_ids"/>
+                </tree>
+            </field>
+        </record>
+        <record id="action_conf_addenda" model="ir.actions.act_window">
+            <field name="name">Addendas</field>
+            <field name="res_model">cfd_mx.conf_addenda</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">tree</field>
+            <field name="view_mode">list,form</field>
+            <field name="target"></field>
+        </record>    
+        <menuitem action="action_conf_addenda"
+            id="menu_conf_addenda" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="group_cfd_mx_user"
+            sequence="120"  />
+
+
+
+
+
+
+        <record id="alta_catalogos_wizard" model="ir.ui.view">
+            <field name="name">alta_catalogos_wizard</field>
+            <field name="model">cf.mx.alta.catalogos.wizard</field>
+            <field name="arch" type="xml">
+                <form>
+                    <separator string="Alta Catalogos CFDI" />
+                    <footer>
+                        <button string='Aceptar' name="action_alta_catalogos" type="object" class="btn-primary"/>
+                        <button string="Cancel" class="btn-default" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+        <record id="action_alta_catalogos_wizard" model="ir.actions.act_window">
+            <field name="name">Alta Catalogos CFDI</field>
+            <field name="res_model">cf.mx.alta.catalogos.wizard</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+        <menuitem
+            action="action_alta_catalogos_wizard" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="group_cfd_mx_user"
+            id="menu_alta_catalogos_wizard"
+            sequence="130" />
+
+
+
+
+        <record id="electronic_cfdi_wizard" model="ir.ui.view">
+            <field name="name">electronic_cfdi_wizard</field>
+            <field name="model">cf.mx.alta.catalogos.wizard</field>
+            <field name="arch" type="xml">
+                <form>
+                    <separator string="Este asistente busca cfdi de ingreso y egresos" />
+                    <footer>
+                        <button string='Aceptar' name="getElectronicCdfi" type="object" class="btn-primary"/>
+                        <button string="Cancel" class="btn-default" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+        <record id="action_electronic_cfdi_wizard" model="ir.actions.act_window">
+            <field name="name">LLenar Comprobantes CFDI</field>
+            <field name="res_model">cf.mx.alta.catalogos.wizard</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="electronic_cfdi_wizard"/>
+            <field name="target">new</field>
+        </record>
+        <menuitem
+            action="action_electronic_cfdi_wizard" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="cfd_mx.group_cfd_mx_user"
+            id="menu_alta_cfdi_wizard"
+            sequence="201" />
+
+
+        
+        <record id="report_cfdi_wizard" model="ir.ui.view">
+            <field name="name">report_cfdi_wizard</field>
+            <field name="model">cf.mx.alta.catalogos.wizard</field>
+            <field name="arch" type="xml">
+                <form>
+                    <separator string="Reporte CFDI Emitidos" />
+                    <group col="4">
+                        <field name="start_date" />
+                        <field name="end_date" />
+                    </group>
+                    <footer>
+                        <button string='Aceptar' name="getReportdfi" type="object" class="btn-primary"/>
+                        <button string="Cancel" class="btn-default" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+        <record id="action_report_cfdi_wizard" model="ir.actions.act_window">
+            <field name="name">Reporte CFDI Emitidos</field>
+            <field name="res_model">cf.mx.alta.catalogos.wizard</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="report_cfdi_wizard"/>
+            <field name="target">new</field>
+        </record>
+        <menuitem
+            action="action_report_cfdi_wizard" 
+            parent="bias_base_report.menu_catalogo_cfdi"
+            groups="cfd_mx.group_cfd_mx_user"
+            id="menu_report_cfdi_wizard"
+            sequence="201" />
+
+
+    </data>
+</odoo>

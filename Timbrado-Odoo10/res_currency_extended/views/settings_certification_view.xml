@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.l10n.mx</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="account.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr=".//div[@id='invoicing_settings']" position="inside">
+                <div class="col-12 col-lg-6 o_setting_box">
+                    <div class="o_setting_left_pane">
+                        <field name="module_l10n_mx_edi" class="oe_inline" widget="upgrade_boolean"/>
+                    </div>
+                    <div class="o_setting_right_pane">
+                        <label for="module_l10n_mx_edi"/>
+                        <div class="text-muted">
+                            Create your electronic invoices automatically (CFDI format)
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <record id="cfd_mx.view_general_configuration" model="ir.ui.view">
+            <field name="name">res.config.settings.view.form.inherit.cfd_mx</field>
+            <field name="model">res.config.settings</field>
+            <field name="inherit_id" ref="base_setup.view_general_configuration"/>
+            <field name="arch" type="xml">
+            <xpath expr="//group[@name='company_share_resources']" position="after">
+                <h2>Electronic invoicing (MX)</h2>
+                <div id="l10n_mx_edi_settings">
+                    <div  title="Fields required to configure the MX CFDI.">
+                        <div/>
+                        <div>
+                            <span>Fiscal Regime</span>
+                            <div>
+                                Configure your SAT fiscal regime.
+                            </div>
+                            <div>
+                                <label for="l10n_mx_edi_fiscal_regime"/>
+                                <field name="l10n_mx_edi_fiscal_regime"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div title="The parameters to configure the MX PAC.">
+                        <div/>
+                        <div
+                            <span>MX PAC</span>
+                            <div >
+                                Configure the Authorized Certification Provider (PAC).
+                            </div>
+                            <div >
+                                <label string="PAC" for="l10n_mx_edi_pac" class="col-lg-3 o_light_label"/>
+                                <field name="l10n_mx_edi_pac"/>
+                            </div>
+                            <div>
+                                <label string="PAC username" for="l10n_mx_edi_pac_username" class="col-lg-3 o_light_label"/>
+                                <field name="l10n_mx_edi_pac_username"/>
+                            </div>
+                            <div>
+                                <label string="PAC password" for="l10n_mx_edi_pac_password">
+                                <field name="l10n_mx_edi_pac_password" password="True"/>
+                            </div>
+                            <div>
+                                <label for="l10n_mx_edi_pac_test_env"/>
+                                <field name="l10n_mx_edi_pac_test_env"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div title="The parameters to configure the MX certificate.">
+                        <div/>
+                        <div>
+                            <span>MX Certificates</span>
+                            <div>
+                                Configure your SAT certificates.
+                            </div>
+                            <div>
+                                <field name="l10n_mx_edi_certificate_ids"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div title="The parameters to configure the External Trade complement.">
+                        <div/>
+                        <div>
+                            <span>External Trade</span>
+                            <div>
+                                Configure data to external trade.
+                            </div>
+                            <div>
+                                <label for="l10n_mx_edi_num_exporter"/>
+                                <field name="l10n_mx_edi_num_exporter"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+
+        </record>
+    </data>
+</openerp>

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import subprocess#
 import tempfile#
-
+import unicodedata
 
 import base64, json
 from datetime import datetime
@@ -40,6 +40,12 @@ CFDI_SAT_QR_STATE = {
     'Vigente': 'valid',
 }
 
+def normalize_string(cadena):
+    z = unicode(cadena, 'utf-8')
+    characters = dict.fromkeys(map(ord, u'!@#$%^*{};\|`~_'), None)
+    accents = dict.fromkeys(map(ord, u'\u0301\u0308'), None)
+    z = unicodedata.normalize('NFKC', unicodedata.normalize('NFKD', z).translate(accents))
+    return z.translate(characters)
 
 def get_format(xml):
     xml = xml.replace("<Comprobante", "<cfdi:Comprobante xsi:schemaLocation=\"http://www.sat.gob.mx/cfd/3 http://www.sat.gob.mx/sitio_internet/cfd/3/cfdv33.xsd http://www.sat.gob.mx/Pagos http://www.sat.gob.mx/sitio_internet/cfd/Pagos/Pagos10.xsd\" xmlns:cfdi=\"http://www.sat.gob.mx/cfd/3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:pago10= \"http://www.sat.gob.mx/Pagos\"")
@@ -134,6 +140,20 @@ class AccountPayment(models.Model):
         'payment.')
     serial_number = fields.Char(string="No. de serie del certificado", size=64, copy=False)
 
+    def remove_especiales(self, cadena):
+        cadena = cadena.replace('"', '')
+        cadena = cadena.replace('\'', '')
+        cadena = cadena.replace('&', '')
+        return cadena
+
+    def get_numParcialidad(self, invoice):
+        lista_pagos=invoice.move_id._get_reconciled_payments().filtered(lambda p: p.state not in ('draft', 'cancelled'))
+        ids=[]
+        for elem in lista_pagos:
+            ids.append(elem.id)
+        ids.sort()
+        return ids.index(self.id)+1
+
     def post(self):
 
         """Generate CFDI to payment after that invoice is paid"""
@@ -152,7 +172,7 @@ class AccountPayment(models.Model):
                     record.journal_id.code, record.name)),
             })
 
-            record._retry()
+            #record._retry()
         return res
 
     # -----------------------------------------------------------------------
@@ -280,7 +300,7 @@ class AccountPayment(models.Model):
                 'the invoices that are paid with this CFDI'))
         messages = []
         if not self.invoice_ids:
-            raise UserError('no invoices')
+            #raise UserError('no invoices')
             messages.append(_(
                 '<b>This payment <b>has not</b> invoices related.'
                 '</b><br/><br/>'
@@ -396,13 +416,15 @@ class AccountPayment(models.Model):
         self.ensure_one()
         qweb = self.env['ir.qweb']
         error_log = []
+        if not self.cfd_mx_payment_method_id:
+            raise UserError('Se debe de agregar un método de pago')
         company_id = self.company_id
         pac_name = company_id.cfd_mx_pac
         values = self._create_cfdi_values()
         
         if 'error' in values:
-            #error_log.append(values.get('error'))
-            _logger.error(values.get('error'))
+            error_log.append(values.get('error'))
+            raise UserError(values.get('error'))
         # -----------------------
         # Check the configuration
         # -----------------------
@@ -457,7 +479,7 @@ class AccountPayment(models.Model):
 
         # -Compute cfdi
         cfdi = qweb.render(CFDI_TEMPLATE, values=values)
-        cfdi = get_format(cfdi)
+        cfdi = get_format(normalize_string(cfdi))
         tree = fromstring(cfdi)
         
         cadena = self.env['account.invoice'].generate_cadena(CFDI_XSLT_CADENA, tree)
@@ -619,10 +641,10 @@ class AccountPayment(models.Model):
     # SAT/PAC service methods
     # -------------------------------------------------------------------------
 
-    
+
     def _get_payment_write_off(self):
         self.ensure_one()
-        writeoff_move_line = self.move_line_ids.filtered(lambda l: l.account_id == self.writeoff_account_id and l.name == self.writeoff_label)
+        writeoff_move_line = self.move_line_ids.filtered(lambda l: l.account_id == self.writeoff_account_id)
         res = {}
         if writeoff_move_line and self.invoice_ids:
             # get the writeoff value in invoice currency
@@ -673,6 +695,9 @@ class AccountPayment(models.Model):
             if xml_signed:
                 _logger.warning(xml_signed)
                 xml_signed = base64.b64encode(xml_signed.encode('utf-8'))
+                fil= open('/tmp/pagado_firmado.xml', 'w')
+                fil.write(xml_signed)
+                fil.close()
             rec._post_sign_process(xml_signed, code, msg)
 
     
@@ -925,3 +950,26 @@ class AccountPayment(models.Model):
         cfdi = self._get_tfd_etree(cfdi)
         #return the cadena
         return self.generate_cadena(xslt_path, cfdi)
+
+    @api.model
+    def _get_customer_rfc(self):
+        """In Mexico depending of some cases the vat (rfc) is not mandatory to be recorded in customers, only for those
+        cases instead try to force the record values and make documentation, given a customer the system will propose
+        properly a vat (rfc) in order to generate properly the xml following this law:
+
+        http://www.sat.gob.mx/informacion_fiscal/factura_electronica/Documents/cfdi/PyRFactElect.pdf.
+
+        :return: XEXX010101000, XAXX010101000 or the customer vat depending of the country
+        """
+
+        if self.partner_id.commercial_partner_id.country_id and self.partner_id.commercial_partner_id.country_id.code_alpha3 != 'MEX':
+            # Following Question 5 in legal Document.
+            return 'XEXX010101000'
+        if (self.partner_id.commercial_partner_id.country_id.code_alpha3 == 'MEX' or not self.partner_id.commercial_partner_id.country_id) and not self.partner_id.commercial_partner_id.vat:
+            self.message_post(
+                body=_('Using General Public VAT because no vat found'),
+                subtype='account.mt_invoice_validated')
+            # Following Question 4 in legal Document.
+            return 'XAXX010101000'
+        # otherwise it returns what customer says and if False xml validation will be solving other cases.
+        return self.partner_id.commercial_partner_id.vat.strip()

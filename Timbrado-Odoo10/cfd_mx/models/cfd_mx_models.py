@@ -1098,7 +1098,7 @@ class ResCurrency(models.Model):
 
 
     def _convert(self, from_amount, to_currency, company, date, round=True):
-        Returns the converted amount of ``from_amount``` from the currency
+         Returns the converted amount of ``from_amount``` from the currency
            ``self`` to the currency ``to_currency`` for the given ``date`` and
            company.
 

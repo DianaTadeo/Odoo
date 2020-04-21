@@ -3,7 +3,7 @@
 
 import subprocess#
 import tempfile#
-
+import unicodedata
 
 import odoo
 from odoo import models, fields, tools, api, _
@@ -47,6 +47,12 @@ catcfdi = {
     'usoCdfi': ['G01','G02','G03','I01','I02','I03','I04','I05','I06','I07','I08','D01','D02','D03','D04','D05','D06','D07','D08','D09','D10','P01']
 }
 
+def normalize_string(cadena):
+    z = unicode(cadena, 'utf-8')
+    characters = dict.fromkeys(map(ord, u'!@#$%^*{};\|`~-_'), None)
+    accents = dict.fromkeys(map(ord, u'\u0301\u0308'), None)
+    z = unicodedata.normalize('NFKC', unicodedata.normalize('NFKD', z).translate(accents))
+    return z.translate(characters)
 
 
 def get_format(xml):
@@ -56,6 +62,8 @@ def get_format(xml):
     xml = xml.replace("</Concepto", "</cfdi:Concepto")
     xml = xml.replace("<Traslado", "<cfdi:Traslado")
     xml = xml.replace("</Traslado", "</cfdi:Traslado")
+    xml = xml.replace("<Retencion", "<cfdi:Retencion")
+    xml = xml.replace("</Retencion", "</cfdi:Retencion")
     xml = xml.replace("<Impuesto", "<cfdi:Impuesto")
     xml = xml.replace("</Impuesto", "</cfdi:Impuesto")
     xml = xml.replace("<Emisor", "<cfdi:Emisor")
@@ -90,8 +98,6 @@ class AccountCfdi(models.Model):
         else:
             self.cant_letra = ""
 
-    
-
     @api.one
     def _get_tipo_cambio(self):
         model_obj = self.env['ir.model.data']
@@ -113,6 +119,12 @@ class AccountCfdi(models.Model):
     @api.one
     def _get_cfd_mx_pac(self):
         self.cfd_mx_pac = self.env.user.company_id.cfd_mx_pac
+    
+    def remove_especiales(self,cadena):
+        cadena = cadena.replace('&', '')
+        cadena = cadena.replace('"', '')
+        cadena = cadena.replace('\'', '')
+        return cadena
 
     @api.one
     @api.depends("uuid")
@@ -240,9 +252,8 @@ class AccountCfdi(models.Model):
         logging.info(datas)
         data= {'record': self}
         cfdi = qweb.render(CFDI_TEMPLATE, values= data)
-        cfdi = get_format(cfdi)
+        cfdi = get_format(normalize_string(cfdi))
         tree = fromstring(cfdi)
-
         fil= open('/tmp/prueba.xml', 'w')
         fil.write(cfdi)
         fil.close()
@@ -390,14 +401,13 @@ class AccountCfdi(models.Model):
             if response.Incidencias:
                 code = getattr(response.Incidencias.Incidencia[0], 'CodigoError', None)
                 msg = getattr(response.Incidencias.Incidencia[0], 'MensajeIncidencia', None)
-                self.message_post('Código de error: '+code+' - '+msg)
+                self.message_post('Código de error: '+code+' - '+msg.encode('utf-8'))
             xml_signed = getattr(response, 'xml', None)
-
             if xml_signed:
                 fil= open('/tmp/signed.xml', 'w')
                 fil.write(xml_signed)
                 fil.close()
-                xml_signed = base64.b64encode(xml_signed.encode('utf-8'))
+                xml_signed = base64.b64encode(xml_signed)
             return response
 
 
@@ -705,7 +715,7 @@ class AccountCfdi(models.Model):
                         'name': (tax.tag_ids[0].name
                                  if tax.mapped('tag_ids') else tax.name).upper(),
                         'amount': amount,
-                        'group' : tax.tax_group_id.name,
+                        'group_type' : tax.tax_group_id.cfdi_impuestos,
                         'rate': rate if tax.amount_type == 'fixed' else rate / 100.0,
                         'type': tax.cfdi_tipofactor,
                         'tax_amount': tax_dict.get('amount', tax.amount),
@@ -731,3 +741,25 @@ class AccountCfdi(models.Model):
             new_withholding[tax['name']].update({'amount': new_withholding[
                 tax['name']]['amount'] + tax['amount']})
         return list(new_withholding.values())
+
+    @api.model
+    def _get_customer_rfc(self):
+        """In Mexico depending of some cases the vat (rfc) is not mandatory to be recorded in customers, only for those
+        cases instead try to force the record values and make documentation, given a customer the system will propose
+        properly a vat (rfc) in order to generate properly the xml following this law:
+
+        http://www.sat.gob.mx/informacion_fiscal/factura_electronica/Documents/cfdi/PyRFactElect.pdf.
+
+        :return: XEXX010101000, XAXX010101000 or the customer vat depending of the country
+        """
+        if self.partner_id.country_id and self.partner_id.country_id.code_alpha3 != 'MEX':
+            # Following Question 5 in legal Document.
+            return 'XEXX010101000'
+        if (self.partner_id.country_id.code_alpha3 == 'MEX' or not self.partner_id.country_id) and not self.partner_id.vat:
+            self.message_post(
+                body=_('Using General Public VAT because no vat found'),
+                subtype='account.mt_invoice_validated')
+            # Following Question 4 in legal Document.
+            return 'XAXX010101000'
+        # otherwise it returns what customer says and if False xml validation will be solving other cases.
+        return self.partner_id.vat.strip()
