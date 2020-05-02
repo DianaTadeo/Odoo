@@ -49,11 +49,10 @@ catcfdi = {
 
 def normalize_string(cadena):
     z = unicode(cadena, 'utf-8')
-    characters = dict.fromkeys(map(ord, u'!@#$%^*{};\|`~-_'), None)
+    characters = dict.fromkeys(map(ord, u'!@#$%^*{};\|ñ`~_'), None)
     accents = dict.fromkeys(map(ord, u'\u0301\u0308'), None)
     z = unicodedata.normalize('NFKC', unicodedata.normalize('NFKD', z).translate(accents))
     return z.translate(characters)
-
 
 def get_format(xml):
     xml = xml.replace("<Comprobante", "<cfdi:Comprobante   xsi:schemaLocation=\"http://www.sat.gob.mx/cfd/3  http://www.sat.gob.mx/sitio_internet/cfd/3/cfdv33.xsd\" xmlns:cfdi=\"http://www.sat.gob.mx/cfd/3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"")
@@ -89,6 +88,17 @@ def create_list_html(array):
 class AccountCfdi(models.Model):
     _name = 'account.cfdi'
 
+
+    def remove_especiales(self,cadena):
+        cadena = cadena.replace('&', '')
+        cadena = cadena.replace('"', '')
+        cadena = cadena.replace('-', '')
+        cadena = cadena.replace('/', '')
+        cadena = cadena.replace('<', '')
+        cadena = cadena.replace('>', '')
+        #cadena = cadena.replace('ñ', 'n')
+        return cadena
+
     @api.one
     def _compute_cant_letra(self):
         total = 0.0
@@ -119,12 +129,7 @@ class AccountCfdi(models.Model):
     @api.one
     def _get_cfd_mx_pac(self):
         self.cfd_mx_pac = self.env.user.company_id.cfd_mx_pac
-    
-    def remove_especiales(self,cadena):
-        cadena = cadena.replace('&', '')
-        cadena = cadena.replace('"', '')
-        cadena = cadena.replace('\'', '')
-        return cadena
+
 
     @api.one
     @api.depends("uuid")
@@ -247,12 +252,13 @@ class AccountCfdi(models.Model):
             'db': self.db
         }
 
-        datas = json.dumps(self.cfdi_datas, sort_keys=True, indent=4, separators=(',', ': '))
-        
+        datas = json.dumps(self.cfdi_datas, sort_keys=True, indent=4, separators=(',', ': '))        
         logging.info(datas)
         data= {'record': self}
         cfdi = qweb.render(CFDI_TEMPLATE, values= data)
         cfdi = get_format(normalize_string(cfdi))
+        logging.info("-----------------------")
+        logging.info(cfdi)
         tree = fromstring(cfdi)
         fil= open('/tmp/prueba.xml', 'w')
         fil.write(cfdi)

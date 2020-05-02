@@ -24,12 +24,13 @@
                 t-att-Confirmacion="ECVH1">
 		                <t t-set="related" t-value="record.uuid_relacionado_id"/>
                     <t t-if="related">
-                        <CfdiRelacionados
-                            t-att-TipoRelacion="related.tipo_relacion.clave">
-                            <t t-foreach="related.uuid_relacionado_id.tipo_relacion.clave" t-as="number">
-                                <CfdiRelacionado t-att-UUID="number"/>
-                            </t>
-                        </CfdiRelacionados>
+                          <CfdiRelacionados
+                            t-att-TipoRelacion="record.tiporelacion_id.clave">
+                                <CfdiRelacionado t-att-UUID="record.uuid_egreso"/>
+                                <!--t t-foreach="related.uuid_relacionado_id.tipo_relacion.clave" t-as="number">
+                                    <CfdiRelacionado t-att-UUID="number"/>
+                                </t-->
+                          </CfdiRelacionados>
 		                </t>
                     <t t-set="nameE" t-value="record.remove_especiales(record.company_id.name)"/>
                     <Emisor
