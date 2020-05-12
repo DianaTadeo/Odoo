@@ -69,10 +69,12 @@
                         t-att-SelloPago="pay_stamp">
                         <t t-set="writeoff_vals" t-value="record._get_payment_write_off()"/>
                         <t t-foreach="record.invoice_ids" t-as="invoice">
+                       
                             <t t-set="amount" t-value="[p for p in invoice._get_invoice_payment_info_JSON() if (p.get('account_payment_id', False) == record.id or not p.get('account_payment_id') and (not p.get('invoice_id') or p.get('invoice_id') == invoice.id))]"/>
                             <t t-set="amount_payment" t-value="sum([data.get('amount', 0.0) for data in amount])"/>
                             <t t-set="amount_insoluto" t-value="invoice.residual"/>
                             <t t-set="num_parcialidad" t-value="record.get_numParcialidad(invoice)"/>
+                            <t t-set="impInsoluto" t-value="(invoice.residual + amount_payment)-record.amount"/>
                             <DoctoRelacionado
                                 t-att-IdDocumento="invoice.uuid"
                                 t-att-Serie="invoice.internal_number[:8]"
@@ -83,7 +85,20 @@
                                 t-att-NumParcialidad="num_parcialidad"
                                 t-att-ImpSaldoAnt="'%0.*f' % (decimal_precision, invoice.residual + amount_payment)"
                                 t-att-ImpPagado="'%0.*f' % (decimal_precision, record.amount  if invoice.currency_id == record.currency_id else 0)"
-                                t-att-ImpSaldoInsoluto="'%0.*f' % (decimal_precision, invoice.residual + amount_payment-record.amount if invoice.currency_id == record.currency_id else 0)"/>
+                                t-att-ImpSaldoInsoluto="'%0.*f' % (decimal_precision,impInsoluto if invoice.currency_id == record.currency_id else 0)"/>
+                        
+                            <!--t t-set="values_ex" t-value="record.return_complemento_extra(invoice)"/>
+                            <DoctoRelacionado
+                                t-att-IdDocumento="invoice.uuid"
+                                t-att-Serie="invoice.internal_number[:8]"
+                                t-att-Folio="invoice.internal_number[9:]"
+                                t-att-MonedaDR="invoice.currency_id.name"
+                                t-att-TipoCambioDR="values_ex.get('TipoCambioDR',False)"
+                                t-att-MetodoDePagoDR="values_ex.get('MetodoDePagoDR',False)"
+                                t-att-NumParcialidad="num_parcialidad"
+                                t-att-ImpSaldoAnt="values_ex.get('ImpSaldoAnt',False)"
+                                t-att-ImpPagado="values_ex.get('ImpPagado',False)"
+                                t-att-ImpSaldoInsoluto="values_ex.get('ImpSaldoInsoluto',False)"/-->
                         </t>
                         <t t-if="total_transferred or total_withhold">
                             <Impuestos

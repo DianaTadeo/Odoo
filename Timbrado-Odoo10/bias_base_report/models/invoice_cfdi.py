@@ -291,7 +291,22 @@ class AccountCfdi(models.Model):
         }
         return cfdi_datas
 
-    
+    @api.one
+    @api.depends('payment_move_line_ids.amount_residual')
+    def _get_payment_info_JSON(self):
+        res = super(AccountInvoice, self)._get_payment_info_JSON()
+        if self.payments_widget != "false":
+            MoveLine = self.env['account.move.line']
+            payments_widget = json.loads(self.payments_widget)
+            for vals in payments_widget.get("content", []):
+                line_id = MoveLine.browse([vals.get("payment_id")])
+                if line_id and line_id.payment_id:
+                    vals['account_payment_id'] = line_id.payment_id.id
+                    vals['cfdi_timbre_id'] = line_id.payment_id and line_id.payment_id.cfdi_timbre_id and line_id.payment_id.cfdi_timbre_id.id or None
+            self.payments_widget = json.dumps(payments_widget)
+        return res
+
+
     def get_process_data(self, obj, res):
         '''Esta permite que el archivo PDF se imprima con los
            valores del SAT una vez timbrada

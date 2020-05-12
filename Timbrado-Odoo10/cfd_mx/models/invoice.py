@@ -310,6 +310,11 @@ class AccountInvoice(models.Model):
                 invoice.metodopago_id = invoice.partner_id.metodopago_id and invoice.partner_id.metodopago_id.id or None
         if invoice.type == 'out_refund':
             invoice.tipo_comprobante = "E"
+            
+            logging.info("&&&&&&&&&&&entra aqui")
+            logging.info(invoice.amount_total)
+            logging.info(invoice.residual)
+            logging.info(invoice.id)
         return invoice
 
     @api.multi

@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="payment10">
+        <Comprobante
+            Version="3.3"
+            t-att-Fecha="date"
+            t-att-Folio="record.name[12:]"
+            t-att-Serie="record.name[:11]"
+            Sello=""
+            t-att-NoCertificado="certificate_number"
+            t-att-Certificado="certificate"
+            SubTotal="0"
+            Moneda="XXX"
+            Total="0"
+            TipoDeComprobante="P"
+            t-att-LugarExpedicion="issued.zip or supplier.zip"
+            t-att-Confirmacion="0">
+            <t t-set="related" t-value="record.get_cfdi_related()"/>
+            <t t-if="related">
+                <CfdiRelacionados
+                    t-att-TipoRelacion="related['type']">
+                    <t t-foreach="related['related']" t-as="number">
+                        <CfdiRelacionado t-att-UUID="number"/>
+                    </t>
+                </CfdiRelacionados>
+            </t>
+            <t t-set="nombreE" t-value="record.remove_especiales(supplier.name)"/>
+            <Emisor
+                t-att-Rfc="supplier.vat"
+                t-att-Nombre="nombreE"
+                t-att-RegimenFiscal="record.company_id.cfd_mx_fiscal_regime"/>
+            <t t-set="nombreR" t-value="record.remove_especiales(customer.commercial_partner_id.name)"/>
+            <Receptor
+                t-att-Rfc="record._get_customer_rfc()" 
+                t-att-Nombre="nameR" 
+                t-att-ResidenciaFiscal="customer.country_id.code_alpha3 if record.partner_id.country_id.code_alpha3 != 'MEX' else False" 
+                t-att-NumRegIdTrib="customer.commercial_partner_id.vat if customer.commercial_partner_id.country_id.code_alpha3 != 'MEX' else False"
+                UsoCFDI="P01"/>
+            <Conceptos>
+                <Concepto
+                    ClaveProdServ="84111506"
+                    Cantidad="1"
+                    ClaveUnidad="ACT"
+                    Descripcion="Pago"
+                    ValorUnitario="0"
+                    Importe="0"/>
+            </Conceptos>
+            <Complemento>
+                <Pagos
+                    Version="1.0">
+                    <t t-set="amount" t-value="record.amount - total_currency"/>
+                    <t t-set="inv_rate" t-value="('%.6f' % (total_paid / amount)) if record.currency_id != record.invoice_ids.mapped('currency_id') else False"/>
+                    <t t-set="inv_rate" t-value="(inv_rate if ((total_paid / float(inv_rate)) &lt;= amount) else '%.6f' % (float(inv_rate) + 0.000001)) if inv_rate else inv_rate"/>
+                    <Pago
+                        t-att-FechaPago="payment_date"
+                        t-att-FormaDePagoP="record.cfd_mx_payment_method_id.code"
+                        t-att-MonedaP="record.currency_id.name"
+                        t-att-TipoCambioP="payment_rate"
+                        t-att-Monto="'%.*f' % (decimal_precision, record.amount)"
+                        t-att-NumOperacion="record.communication[:100].replace('|', ' ') if record.communication else None"
+                        t-att-RfcEmisorCtaOrd="record.cfd_mx_partner_bank_id.bank_id.vat or None"
+                        t-att-NomBancoOrdExt="pay_name_ord or None"
+                        t-att-CtaOrdenante="pay_account_ord or None"
+                        t-att-RfcEmisorCtaBen="pay_vat_receiver or None"
+                        t-att-CtaBeneficiario="pay_account_receiver or None"
+                        t-att-TipoCadPago="pay_ent_type"
+                        t-att-CertPago="pay_certificate"
+                        t-att-CadPago="pay_string"
+                        t-att-SelloPago="pay_stamp">
+                        <!--
+                        <t t-set="writeoff_vals" t-value="record._get_payment_write_off()"/>
+                        <t t-foreach="record.invoice_ids" t-as="invoice">
+                            <t t-set="amount" t-value="[p for p in invoice._get_invoice_payment_info_JSON() if (p.get('account_payment_id', False) == record.id or not p.get('account_payment_id') and (not p.get('invoice_id') or p.get('invoice_id') == invoice.id))]"/>
+                            <t t-set="amount_payment" t-value="sum([data.get('amount', 0.0) for data in amount])"/>
+                            <t t-set="amount_insoluto" t-value="invoice.residual"/>
+                            <t t-set="num_parcialidad" t-value="record.get_numParcialidad(invoice)"/>
+                            <DoctoRelacionado
+                                t-att-IdDocumento="invoice.uuid"
+                                t-att-Serie="invoice.internal_number[:8]"
+                                t-att-Folio="invoice.internal_number[9:]"
+                                t-att-MonedaDR="invoice.currency_id.name"
+                                t-att-TipoCambioDR="inv_rate if record.currency_id != invoice.currency_id else False"
+                                t-att-MetodoDePagoDR="invoice.get_payment_method_cfdi()"
+                                t-att-NumParcialidad="num_parcialidad"
+                                t-att-ImpSaldoAnt="'%0.*f' % (decimal_precision, invoice.residual + amount_payment)"
+                                t-att-ImpPagado="'%0.*f' % (decimal_precision, record.amount  if invoice.currency_id == record.currency_id else 0)"
+                                t-att-ImpSaldoInsoluto="'%0.*f' % (decimal_precision, invoice.residual + amount_payment-record.amount if invoice.currency_id == record.currency_id else 0)"/>
+                        </t-->
+                        @api.multi
+    def return_complemento_extra(self, Comprobante):
+        self.ensure_one()
+        context = dict(self._context) or {}
+        ctx_inv = context.get('ctx_inv', {})
+        MoveLine = self.env['account.move.line']
+        decimal_precision = self.env['decimal.precision'].precision_get('Account')
+        mxn = self.env.ref('base.MXN')
+        rate = ('%.6f' % (self.currency_id.with_context(date=self.payment_date).compute( 1, mxn, False))) if self.currency_id.name != 'MXN' else False
+        #nodoPago10 = []
+        # Nodo pago10:Pago
+        #Complemento = Nodo('cfdi:Complemento', padre=Comprobante)
+        #Pagos = Nodo('pago10:Pagos', {"Version": '1.0'}, padre=Complemento)
+        pago_attribs = {
+            #"FechaPago": '%sT12:00:00'%(self.payment_date),
+            #"FormaDePagoP": self.formapago_id.clave or "01",
+            "MonedaP": self.currency_id.name,
+            "Monto": '%.*f' % (decimal_precision, self.amount),
+            "NumOperacion": self.communication[:100].replace('|', ' ') if self.communication else "Pago %s "%(self.payment_date)
+        }
+        if self.currency_id.name != "MXN":
+            pago_attribs["TipoCambioP"] = rate
+        if not self.cfdi_factoraje_id:
+            if self.formapago_id and self.formapago_id.banco:
+                #if self.cta_origen_id:
+                    #if self.cta_origen_id and self.cta_origen_id.acc_number:
+                    #    pago_attribs["CtaOrdenante"]= self.cta_origen_id.acc_number or ""
+                    #bank_vat = self.cta_origen_id and self.cta_origen_id.bank_id or False
+                    #if bank_vat and bank_vat.vat:
+                    #    pago_attribs["RfcEmisorCtaOrd"] = bank_vat and bank_vat.vat or ""
+                    #if bank_vat and bank_vat.vat == "XEXX010101000":
+                    #    pago_attribs["NomBancoOrdExt"] = bank_vat.description or ""
+                #bank_vat = self.journal_id and self.journal_id.bank_id and self.journal_id.bank_id.vat or False
+                if bank_vat:
+                    pago_attribs["RfcEmisorCtaBen"] = bank_vat
+                if self.journal_id and self.journal_id.bank_acc_number:
+                    pago_attribs["CtaBeneficiario"] = self.journal_id and self.journal_id.bank_acc_number or ""
+                #if self.spei_tipo_cadenapago == "01":
+                #    pago_attribs["TipoCadPago"] = self.spei_tipo_cadenapago
+                #    pago_attribs["CertPago"] = self.spei_certpago
+                #    pago_attribs["CadPago"] = self.spei_cadpago
+                #    pago_attribs["SelloPago"] = self.spei_sellopago
+        #Pago = Nodo('pago10:Pago', pago_attribs, padre=Pagos)
+        MoveLine = self.env["account.move.line"]
+        lines = self.move_line_ids.mapped('move_id.line_ids').filtered(lambda l: l.account_id.user_type_id.type == 'liquidity')
+        amount_paid = sum(lines.mapped('amount_currency') if self.currency_id.name != 'MXN' else lines.mapped('debit'))
+        inv_fact = {}
+        for invoice in self.invoice_ids:
+            inv = ctx_inv.get(invoice.id) and ctx_inv[invoice.id]
+            TipoCambioDR = None
+            inv_currency_id = invoice.currency_id.with_context(date=invoice.date_invoice)
+            payments_widget = json.loads(invoice.payments_widget)
+            content = payments_widget.get("content", [])
+            payment_vals = [p for p in content if p.get('account_payment_id', False) == self.id]
+            move_line_id = MoveLine.browse( payment_vals[0].get('payment_id', False) )
+            # print "amount_currency", abs(move_line_id.amount_currency), abs(move_line_id.credit)
+            amount_payment = abs(move_line_id.amount_currency) or abs(move_line_id.credit)
+            if inv_currency_id == invoice.company_id.currency_id:
+                amount_payment = abs(move_line_id.credit)
+                TipoCambioDR = rate
+            else:
+                amount_payment = abs(move_line_id.amount_currency)
+            rate_difference = [p for p in content if p.get('journal_name', '') == self.company_id.currency_exchange_journal_id.name]
+            rate_difference = rate_difference[0].get('amount', 0.0) if rate_difference else 0.0
+            NumParcialidad = len(invoice.payment_ids.filtered(lambda p: p.state not in ('draft', 'cancelled')).ids)
+            if NumParcialidad == 0:
+                NumParcialidad = 1
+            ImpSaldoAnt = inv.get('residual', 0.0)  # invoice.residual + amount_payment + rate_difference
+            ImpPagado = amount_payment
+            if amount_payment > ImpSaldoAnt:
+                ImpPagado = ImpSaldoAnt
+                ImpSaldoInsoluto = 0.0
+            if self.currency_id != inv_currency_id:
+                TipoCambioDR = 1
+                if rate_difference:
+                    ImpPagado = ImpSaldoAnt
+                    ImpSaldoInsoluto = 0.0
+            ImpSaldoInsoluto = ImpSaldoAnt - ImpPagado
+            docto_attribs = {
+                "IdDocumento": "%s"%invoice.uuid,
+                "Folio": "%s"%invoice.number,
+                "MonedaDR": "%s"%invoice.currency_id.name,
+                "MetodoDePagoDR": '%s'%(invoice.metodopago_id and invoice.metodopago_id.clave or "PPD"),
+                "NumParcialidad": '%s'%NumParcialidad,
+                "ImpSaldoAnt": '%0.*f' % (decimal_precision, ImpSaldoAnt),
+                "ImpPagado": '%0.*f' % (decimal_precision, ImpPagado),
+                "ImpSaldoInsoluto": '%0.*f' % (decimal_precision, ImpSaldoInsoluto),
+            }
+            if TipoCambioDR and inv_currency_id != invoice.company_id.currency_id:
+                docto_attribs['TipoCambioDR'] = TipoCambioDR # ('%.6f' % (TipoCambioDR))
+            elif  TipoCambioDR and inv_currency_id == invoice.company_id.currency_id:
+                docto_attribs['TipoCambioDR'] = rate
+            #DoctoRelacionado = Nodo('pago10:DoctoRelacionado', docto_attribs, padre=Pago)
+            inv_fact[invoice.id] = {'uuid': invoice.uuid, 'ImpSaldoInsoluto': '%0.*f' % (decimal_precision, ImpSaldoInsoluto)}
+        if self.cfdi_factoraje_id and self.partner_factoraje_id:
+            for invoice in self.invoice_ids:
+                if invoice.residual == 0.0:
+                    continue
+                amount_total = self.cfdi_factoraje_id.amount_total
+                doctoRel = inv_fact.get(invoice.id)
+                ImpSaldoAnt = 0.0
+                if doctoRel:
+                    ImpSaldoAnt = float(doctoRel.get("ImpSaldoInsoluto"))
+                ImpSaldoAnt =  '%0.*f' % (decimal_precision, ImpSaldoAnt)
+                amount_total = '%0.*f' % (decimal_precision, amount_total)
+                ImpSaldoInsoluto = float(ImpSaldoAnt)-float(amount_total)
+                pago_attribs = {
+                #    "FechaPago": '%sT12:00:00'%(self.payment_date),
+                #    "FormaDePagoP": "17",
+                    "MonedaP": self.currency_id.name,
+                    "Monto": amount_total,
+                    "NumOperacion": "Compensacion",
+                }
+                if self.currency_id.name != "MXN":
+                    pago_attribs["TipoCambioP"] = rate
+                # Pagos = Nodo('pago10:Pagos', {"Version": '1.0'}, padre=Complemento)
+                #Pago = Nodo('pago10:Pago', pago_attribs, padre=Pagos)
+                NumParcialidad = 2
+                inv_rate = ('%.6f' % (self.cfdi_factoraje_id.currency_id.with_context(date=self.payment_date).compute(1, self.currency_id, round=False))) if self.currency_id != self.cfdi_factoraje_id.currency_id else False
+                docto_attribs = {
+                    "IdDocumento": "%s"%invoice.uuid,
+                    #"Folio": "%s"%invoice.number,
+                    "MonedaDR": "%s"%invoice.currency_id.name,
+                    "MetodoDePagoDR": '%s'%(invoice.metodopago_id and invoice.metodopago_id.clave or "PPD"),
+                    "NumParcialidad": '%s'%NumParcialidad,
+                    "ImpSaldoAnt": ImpSaldoAnt,
+                    "ImpPagado": amount_total,
+                    "ImpSaldoInsoluto": '%0.*f' % (decimal_precision, ImpSaldoInsoluto),
+                }
+                #if invoice.journal_id.serie:
+                #    docto_attribs['Serie'] = invoice.journal_id.serie or ''
+                #if inv_rate:
+                #    docto_attribs['TipoCambioDR'] = (1 / inv_rate)
+                #DoctoRelacionado = Nodo('pago10:DoctoRelacionado', docto_attribs, padre=Pago)
+        return docto_attribs
+                        <t t-if="total_transferred or total_withhold">
+                            <Impuestos
+                                t-att-TotalImpuestosRetenidos="total_withhold"
+                                t-att-TotalImpuestosTrasladados="total_transferred">
+                                <t t-if="withhold">
+                                    <Retenciones>
+                                        <t t-foreach="withhold" t-as="tax">
+                                            <Retencion
+                                                t-att-Impuesto="tax.tax"
+                                                t-att-Importe="tax.amount"/>
+                                        </t>
+                                    </Retenciones>
+                                </t>
+                                <t t-if="transferred">
+                                    <Traslados>
+                                        <t t-foreach="transferred" t-as="tax">
+                                            <Traslado
+                                                t-att-Impuesto="tax.tax"
+                                                t-att-TipoFactor="tax.type"
+                                                t-att-TasaOCuota="tax.rate"
+                                                t-att-Importe="tax.amount"/>
+                                        </t>
+                                    </Traslados>
+                                </t>
+                            </Impuestos>
+                        </t>
+                    </Pago>
+                </Pagos>
+            </Complemento>
+        </Comprobante>
+    </template>
+</odoo>

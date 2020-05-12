@@ -83,11 +83,11 @@
                                                 <t t-set="tasa" t-value="'%.6f' % abs(tax.amount if tax.amount_type == 'fixed' else (tax.amount / 100.0))"/>
                                                 <t t-set="code_imp" t-value="tax.tax_group_id.cfdi_impuestos"/>
                                                 <Retencion
-                                                    t-att-Base="'%.2f' % (record.amount_untaxed)"
+                                                    t-att-Base="'%.2f' % (line.price_unit* line.quantity)"
                                                     t-att-Impuesto="code_imp"
                                                     t-att-TipoFactor="tax.cfdi_tipofactor"
-                                                    t-att-TasaOCuota="tasa"
-                                                    t-att-Importe="'%.2f' % ((abs(tax.amount) / 100.0)*record.amount_untaxed) if tax.type_tax_use != 'Exento' else False"/>
+                                                    t-att-TasaOCuota="tasa"                                                 
+                                                    t-att-Importe="'%.2f' % ((abs(tax.amount) / 100.0)*(line.price_unit* line.quantity)) if tax.type_tax_use != 'Exento' else False"/>
                                             </t>
                                         </Retenciones>
                                     </t>

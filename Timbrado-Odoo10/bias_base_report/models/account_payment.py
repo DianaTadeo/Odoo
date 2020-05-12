@@ -973,3 +973,139 @@ class AccountPayment(models.Model):
             return 'XAXX010101000'
         # otherwise it returns what customer says and if False xml validation will be solving other cases.
         return self.partner_id.commercial_partner_id.vat.strip()
+
+    @api.multi
+    def return_complemento_extra(self, invoice):
+        self.ensure_one()
+        context = dict(self._context) or {}
+        ctx_inv = context.get('ctx_inv', {})
+        MoveLine = self.env['account.move.line']
+        decimal_precision = self.env['decimal.precision'].precision_get('Account')
+        mxn = self.env.ref('base.MXN')
+        rate = ('%.6f' % (self.currency_id.with_context(date=self.payment_date).compute( 1, mxn, False))) if self.currency_id.name != 'MXN' else False
+        #nodoPago10 = []
+        # Nodo pago10:Pago
+        #Complemento = Nodo('cfdi:Complemento', padre=Comprobante)
+        #Pagos = Nodo('pago10:Pagos', {"Version": '1.0'}, padre=Complemento)
+        pago_attribs = {}
+        #if self.currency_id.name != "MXN":
+        #    pago_attribs["TipoCambioP"] = rate
+        #if not self.cfdi_factoraje_id:
+        #    if self.formapago_id and self.formapago_id.banco:
+                #if self.cta_origen_id:
+                    #if self.cta_origen_id and self.cta_origen_id.acc_number:
+                    #    pago_attribs["CtaOrdenante"]= self.cta_origen_id.acc_number or ""
+                    #bank_vat = self.cta_origen_id and self.cta_origen_id.bank_id or False
+                    #if bank_vat and bank_vat.vat:
+                    #    pago_attribs["RfcEmisorCtaOrd"] = bank_vat and bank_vat.vat or ""
+                    #if bank_vat and bank_vat.vat == "XEXX010101000":
+                    #    pago_attribs["NomBancoOrdExt"] = bank_vat.description or ""
+                #bank_vat = self.journal_id and self.journal_id.bank_id and self.journal_id.bank_id.vat or False
+                #if bank_vat:
+                #    pago_attribs["RfcEmisorCtaBen"] = bank_vat
+                #if self.journal_id and self.journal_id.bank_acc_number:
+                #    pago_attribs["CtaBeneficiario"] = self.journal_id and self.journal_id.bank_acc_number or ""
+                #if self.spei_tipo_cadenapago == "01":
+                #    pago_attribs["TipoCadPago"] = self.spei_tipo_cadenapago
+                #    pago_attribs["CertPago"] = self.spei_certpago
+                #    pago_attribs["CadPago"] = self.spei_cadpago
+                #    pago_attribs["SelloPago"] = self.spei_sellopago
+        #Pago = Nodo('pago10:Pago', pago_attribs, padre=Pagos)
+        MoveLine = self.env["account.move.line"]
+        lines = self.move_line_ids.mapped('move_id.line_ids').filtered(lambda l: l.account_id.user_type_id.type == 'liquidity')
+        amount_paid = sum(lines.mapped('amount_currency') if self.currency_id.name != 'MXN' else lines.mapped('debit'))
+        inv_fact = {}
+        #for invoice in self.invoice_ids:
+        inv = ctx_inv.get(invoice.id) and ctx_inv[invoice.id]
+        TipoCambioDR = None
+        inv_currency_id = invoice.currency_id.with_context(date=invoice.date_invoice)
+        #payments_widget = json.loads(invoice.payments_widget)
+        #_logger.info(invoice.payments_widget)
+        #content = payments_widget.get("content", [])
+        payment_vals = [p for p in invoice._get_invoice_payment_info_JSON() if (p.get('account_payment_id', False) == self.id or not p.get('account_payment_id') and (not p.get('invoice_id') or p.get('invoice_id') == invoice.id))]
+        #payment_vals = [p for p in content if p.get('account_payment_id', False) == self.id]
+        _logger.info(payment_vals)
+        move_line_id = MoveLine.browse( payment_vals[0].get('payment_id', False) )
+        # print "amount_currency", abs(move_line_id.amount_currency), abs(move_line_id.credit)
+        amount_payment = abs(move_line_id.amount_currency) or abs(move_line_id.credit)
+        if inv_currency_id == invoice.company_id.currency_id:
+            amount_payment = abs(move_line_id.credit)
+            TipoCambioDR = rate
+        else:
+            amount_payment = abs(move_line_id.amount_currency)
+        rate_difference = [p for p in payment_vals if p.get('journal_name', '') == self.company_id.currency_exchange_journal_id.name]
+        _logger.info(rate_difference)
+        rate_difference = rate_difference[0].get('amount', 0.0) if rate_difference else 0.0
+        NumParcialidad = len(invoice.payment_ids.filtered(lambda p: p.state not in ('draft', 'cancelled')).ids)
+        if NumParcialidad == 0:
+            NumParcialidad = 1
+        ImpSaldoAnt = invoice.residual + amount_payment
+        ImpPagado = amount_payment
+        if amount_payment > ImpSaldoAnt:
+            ImpPagado = ImpSaldoAnt
+            ImpSaldoInsoluto = 0.0
+        if self.currency_id != inv_currency_id:
+            TipoCambioDR = 1
+            if rate_difference:
+                ImpPagado = ImpSaldoAnt
+                ImpSaldoInsoluto = 0.0
+        ImpSaldoInsoluto = ImpSaldoAnt - ImpPagado
+        docto_attribs = {
+            "IdDocumento": "%s"%invoice.uuid,
+            "Folio": "%s"%invoice.number,
+            "MonedaDR": "%s"%invoice.currency_id.name,
+            "MetodoDePagoDR": '%s'%(invoice.metodopago_id and invoice.metodopago_id.clave or "PPD"),
+            "NumParcialidad": '%s'%NumParcialidad,
+            "ImpSaldoAnt": '%0.*f' % (decimal_precision, ImpSaldoAnt),
+            "ImpPagado": '%0.*f' % (decimal_precision, ImpPagado),
+            "ImpSaldoInsoluto": '%0.*f' % (decimal_precision, ImpSaldoInsoluto),
+        }
+        if TipoCambioDR and inv_currency_id != invoice.company_id.currency_id:
+            docto_attribs['TipoCambioDR'] = TipoCambioDR # ('%.6f' % (TipoCambioDR))
+        elif  TipoCambioDR and inv_currency_id == invoice.company_id.currency_id:
+            docto_attribs['TipoCambioDR'] = rate
+        #DoctoRelacionado = Nodo('pago10:DoctoRelacionado', docto_attribs, padre=Pago)
+        inv_fact[invoice.id] = {'uuid': invoice.uuid, 'ImpSaldoInsoluto': '%0.*f' % (decimal_precision, ImpSaldoInsoluto)}
+        """
+        if self.cfdi_factoraje_id and self.partner_factoraje_id and invoice.residual != 0.0:
+            #for invoice in self.invoice_ids:
+            #if invoice.residual == 0.0:
+            #    continue
+            amount_total = self.cfdi_factoraje_id.amount_total
+            doctoRel = inv_fact.get(invoice.id)
+            ImpSaldoAnt = 0.0
+            if doctoRel:
+                ImpSaldoAnt = float(doctoRel.get("ImpSaldoInsoluto"))
+            ImpSaldoAnt =  '%0.*f' % (decimal_precision, ImpSaldoAnt)
+            amount_total = '%0.*f' % (decimal_precision, amount_total)
+            ImpSaldoInsoluto = float(ImpSaldoAnt)-float(amount_total)
+            pago_attribs = {
+                #    "FechaPago": '%sT12:00:00'%(self.payment_date),
+                #    "FormaDePagoP": "17",
+                    "MonedaP": self.currency_id.name,
+                    "Monto": amount_total,
+                    "NumOperacion": "Compensacion",
+                }
+            if self.currency_id.name != "MXN":
+                pago_attribs["TipoCambioP"] = rate
+            # Pagos = Nodo('pago10:Pagos', {"Version": '1.0'}, padre=Complemento)
+            #Pago = Nodo('pago10:Pago', pago_attribs, padre=Pagos)
+            NumParcialidad = 2
+            inv_rate = ('%.6f' % (self.cfdi_factoraje_id.currency_id.with_context(date=self.payment_date).compute(1, self.currency_id, round=False))) if self.currency_id != self.cfdi_factoraje_id.currency_id else False
+            docto_attribs = {
+                "IdDocumento": "%s"%invoice.uuid,
+                #"Folio": "%s"%invoice.number,
+                "MonedaDR": "%s"%invoice.currency_id.name,
+                "MetodoDePagoDR": '%s'%(invoice.metodopago_id and invoice.metodopago_id.clave or "PPD"),
+                "NumParcialidad": '%s'%NumParcialidad,
+                "ImpSaldoAnt": ImpSaldoAnt,
+                "ImpPagado": amount_total,
+                "ImpSaldoInsoluto": '%0.*f' % (decimal_precision, ImpSaldoInsoluto),
+            }
+        """
+            #if invoice.journal_id.serie:
+            #    docto_attribs['Serie'] = invoice.journal_id.serie or ''
+            #if inv_rate:
+            #    docto_attribs['TipoCambioDR'] = (1 / inv_rate)
+            #DoctoRelacionado = Nodo('pago10:DoctoRelacionado', docto_attribs, padre=Pago)
+        return docto_attribs
