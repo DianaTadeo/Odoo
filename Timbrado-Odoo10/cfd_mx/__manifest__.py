@@ -26,7 +26,7 @@ Factura Electronica Mexico 3.3
         'security/cfd_mx_groups.xml',
         'security/ir.model.access.csv',
         'data/account_invoice.sql',
-
+        'data/email_compose_account_payment.xml',
         'data/xml/service_cron_data.xml',
         # "data/xml/account_data.xml",
         "data/xml/account.tax.group.xml",
@@ -38,7 +38,7 @@ Factura Electronica Mexico 3.3
         "data/xml/cfd_mx.aduana.xml",
         "data/xml/res.country.xml",
         "data/xml/cfd_mx.tiporelacion.xml",
-
+        'views/account_payment_report.xml',
         'views/ir_view_view.xml',
         'views/cfd_mx_models_views.xml',
         'views/res_country_view.xml',

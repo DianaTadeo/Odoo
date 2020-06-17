@@ -49,38 +49,65 @@
             <t t-call="report.html_container">
                 <div class="page">
 
-                    <div class="row">
+
+                    <div class="row"><!---HEADER-->
                         <div class="col-xs-3">
                             <img 
                                 t-if="o.company_id.logo" 
                                 t-att-src="'data:image/png;base64,%s' % o.company_id.logo" 
                                 class="img img-responsive" style="max-height:104px;" />
                         </div>
-                        <div class="col-xs-6 text-center">
-                            <strong class="font_theme_color" t-field="o.company_id.partner_id.name" /><br />
-                            <div class="text-center" name="company_address">
-                                <div t-field="o.company_id.partner_id" 
-                                    t-field-options='{
-                                        "widget": "contact", 
-                                        "fields": ["address", "phone", "email", "vat", "regimen_id"], 
-                                        "no_marker": false, "phone_icons": true}'
-                                    class="company_address" />
+                        
+
+                        <div class="col-xs-6">
+                            <div class="bg_theme_color">
+                                <span class="fa fa-building-o"></span>
+                                <strong t-field="o.company_id.partner_id.name" /><br />
+                            </div>
+                            <div>
+                                <div name="company_address">
+                                    <div t-field="o.company_id.partner_id" 
+                                        t-field-options='{
+                                            "widget": "contact", 
+                                            "fields": ["address", "phone", "email", "vat", "regimen_id"], 
+                                            "no_marker": false, "phone_icons": true}'
+                                        class="company_address" />
+                                </div>
                             </div>
                         </div>
-                        <div class="col-xs-3 calidad_page">
+
+
+
+                        <div class="col-xs-3">
                             <div class="row">
-                                <div class="col-xs-12 bg_theme_color text-center">
+                                <div class="col-xs-12 bg_theme_color">
                                     <span class="fa fa-building-o"></span>
-                                    <strong>FACTURA</strong>
+                                    <strong>FACTURA Modificada</strong>
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-xs-12 bg_theme_color text-center">
-                                    <strong>Serie y Folio</strong>
-                                </div>
+
                                 <div class="col-xs-12">
-                                    <span t-field="o.journal_id.serie" /> <span t-field="o.number" />
+                                    <div class="row">
+                                        <div class="col-xs-6">
+                                            <div class="d-inline">
+                                                <strong>Serie</strong>
+                                                <span t-field="o.journal_id.serie" />
+                                            </div>
+                                        </div>
+
+
+                                        <div class="col-xs-6">
+                                            <div class="d-inline">
+                                                <strong>Folio</strong>
+                                                <span t-field="o.name" />
+                                            </div>
+                                        </div>
+                                    </div>
+
                                 </div>
+
+
                                 <div class="col-xs-12 bg_theme_color text-left">
                                     <strong>Fecha y Hora de Emisión</strong>
                                 </div>
@@ -91,22 +118,24 @@
                                     <strong>Lugar de Expedición</strong>
                                 </div>
                                 <div class="col-xs-12 text-left">
-                                    [<span t-field="o.journal_id.codigo_postal_id.name" />] <span t-field="o.journal_id.codigo_postal_id.municipio_id" />
+                                    [<span t-field="o.journal_id.codigo_postal_id.name" />] <span t-field="o.journal_id.codigo_postal_id.municipio_id" />, <span t-field="o.journal_id.codigo_postal_id.state_id.name"/>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="row">
+
+                    <div class="row"><!-- SEGUNDO RENGLON -->
                         <table class="table table-condensed">
-                            <thead>
+                            <thead style="height:15px;">
                                 <tr>
-                                    <th style="width: 40%;">Información del Cliente</th>
-                                    <th style="width: 60%;">Información Adicional</th>
+                                    <th style="width: 30%;" class="bg_theme_color">Información del Cliente</th>
+                                    <th style="width: 30%;" class="bg_theme_color">Uso del CFDI</th>
+                                    <th style="width: 30%;" class="bg_theme_color">Información Adicional</th>
                                 </tr>
                             </thead>
                             <tbody class="invoice_tbody">
                                 <tr>
-                                    <td style="width: 40%;">
+                                    <td style="padding: 0 20px;">
                                         <div class="row">
                                             <div class="col-xs-12 text-left">
                                                 <strong t-field="o.partner_id.name" />
@@ -117,66 +146,63 @@
                                                             "fields": ["address", "phone", "email", "vat", "website"], 
                                                             "no_marker": false, "phone_icons": true}'
                                                         class="font_inv" />
-                                                    <p t-if="o.partner_id.ref" class="font_inv"><strong>Numero de Cliente:</strong> <span t-field="o.partner_id.ref"/></p>
+                                                    <p t-if="o.partner_id.ref" class="font_inv">
+                                                        <strong>Numero de Cliente:</strong>
+                                                        <span t-field="o.partner_id.ref"/>
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td style="width: 60%;">
-                                        <div class="row font_inv">
+                                    <td style="padding: 0 20px;">
+                                        <div class="row font_inv text-left">
                                             <t t-if="o.usocfdi_id">
-                                                <div class="col-xs-4 bg_theme_color text-left">
-                                                    <strong>Uso del CFDI</strong>
-                                                </div>
-                                                <div class="col-xs-8">
+                                                <div class="col">
                                                     <span t-field="o.usocfdi_id.name" />
                                                 </div>
                                             </t>
                                             <t t-if="o.currency_id">
-                                                <div class="col-xs-4 bg_theme_color text-left">
+                                                <div class="col bg_theme_color">
                                                     <strong>Moneda</strong>
                                                 </div>
-                                                <div class="col-xs-8 text-left">
+                                                <div class="col">
                                                     <span t-field="o.currency_id.name" />
                                                 </div>
                                             </t>
                                             <t t-if="o.tipo_cambio">
-                                                <div class="col-xs-4 bg_theme_color text-left">
+                                                <div class="col bg_theme_color">
                                                     <strong>Tipo de Cambio</strong>
                                                 </div>
-                                                <div class="col-xs-8 text-left">
+                                                <div class="col">
                                                     <span t-field="o.tipo_cambio" />
                                                 </div>
                                             </t>
+
+                                        </div>
+                                    </td>
+                                    <td style="padding: 0 20px;">
+                                        <div class="row font_inv text-left">
                                             <t t-if="o.noCertificado">
-                                                <div class="col-xs-4 bg_theme_color text-left">
+                                                <div class="col">
                                                     <strong>No. Certificado</strong>
-                                                </div>
-                                                <div class="col-xs-8 text-left">
                                                     <span t-field="o.noCertificado" />
                                                 </div>
                                             </t>
                                             <t t-if="o.metodopago_id">
-                                                <div class="col-xs-4 bg_theme_color text-left">
+                                                <div class="col">
                                                     <strong>Método de Pago</strong>
-                                                </div>
-                                                <div class="col-xs-8 text-left">
                                                     <span t-field="o.metodopago_id.clave" /> - <span t-field="o.metodopago_id.name" />
                                                 </div>
                                             </t>
                                             <t t-if="o.formapago_id">
-                                                <div class="col-xs-4 bg_theme_color text-left">
+                                                <div class="col">
                                                     <strong>Forma de Pago</strong>
-                                                </div>
-                                                <div class="col-xs-8 text-left">
                                                     <span t-field="o.formapago_id.clave" /> - <span t-field="o.formapago_id.name" />
                                                 </div>
                                             </t>
                                             <t t-if="o.payment_term_id">
-                                                <div class="col-xs-4 bg_theme_color text-left">
+                                                <div class="col">
                                                     <strong>Condiciones de Pago</strong>
-                                                </div>
-                                                <div class="col-xs-8 text-left">
                                                     <span t-field="o.payment_term_id.name" />
                                                 </div>
                                             </t>
@@ -186,12 +212,15 @@
                             </tbody>
                         </table>
                     </div>
+
+
+
                     <t t-set="ret" t-value="0.0" />
                     <t t-set="tras" t-value="0.0" />
-                    <div class="row font_inv">
-                        <table class="table table-condensed">
+                    <div class="row font_inv text-left">
+                        <table class="table table-condensed table-bordered">
                             <thead>
-                                <tr><th colspan="6" class="text-center" >CONCEPTOS DEL COMPROBANTE</th></tr>
+                                <tr><th colspan="6">CONCEPTOS DEL COMPROBANTE</th></tr>
                                 <tr>
                                     <th style="width: 50%;">Descripción</th>
                                     <th>Cantidad</th>
@@ -210,6 +239,14 @@
                                         <td class="text-right">$ <span t-field="l.price_unit" /> </td>
                                         <td class="text-right"><span t-field="l.price_subtotal" /> </td>
                                         <td class="text-right"><span t-field="l.price_discount_sat" /> </td>
+                                    </tr>
+                                    <tr>
+                                        <t t-if="l.x_description">
+                                            <td colspan="6" class="text-left">
+                                                <strong>Descripcion Extendida</strong><br /><br />
+                                                    <span style="white-space: pre-wrap" t-esc="l.x_description"/>
+                                            </td>
+                                        </t>
                                     </tr>
                                     <tr>
                                         <td class="border-bottom">
@@ -265,7 +302,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="row font_inv">
+                    <div class="row font_inv text-left">
                         <table class="table table-condensed">
                             <thead>
                                 <tr>
@@ -288,7 +325,7 @@
                         </table>
                     </div>
                     <t t-if="o.uuid_relacionado_id">
-                        <div class="row font_inv">
+                        <div class="row font_inv text-left">
                             <table class="table table-condensed">
                                 <thead>
                                     <tr><th colspan="2">DOCUMENTO RELACIONADO</th></tr>
@@ -307,10 +344,10 @@
                         </div>
                     </t>
                     <t t-if="o.uuid">
-                        <div class="row font_inv">
+                        <div class="row font_inv text-left">
                             <table class="table table-condensed">
                                 <thead>
-                                    <tr><th colspan="4" class="text-center">TIMBRE FISCAL</th></tr>
+                                    <tr><th colspan="4">TIMBRE FISCAL</th></tr>
                                     <tr>
                                         <th style="width: 15%;">PAC</th>
                                         <th style="width: 45%;">Folios Fiscal</th>
@@ -331,49 +368,89 @@
                     </t>
                     <t t-if="o.sello">
                         <div class="row font_inv">
-                            <table class="table table-condensed">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 25%;"> </th>
-                                        <th style="width: 25%;">Sello Digital del Emisor</th>
-                                        <th style="width: 25%;">Sello Digital del SAT</th>
-                                        <th style="width: 25%;">Cadena Original</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="invoice_tbody">
-                                    <tr>
-                                        <td style="width: 25%;">
-                                            <img alt="Barcode" t-att-src="'/report/barcode/?type=QR&amp;value=%s&amp;width=%s&amp;height=%s' % (quote_plus('https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?' + keep_query(re=o.company_id.vat, rr=o.partner_id.vat,
+                            <div class="col-xs-3">
+                                <img alt="Barcode" t-att-src="'/report/barcode/?type=QR&amp;value=%s&amp;width=%s&amp;height=%s' % (quote_plus('https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?' + keep_query(re=o.company_id.vat, rr=o.partner_id.vat,
                                 tt='%.*f' % (o.currency_id.decimal_places, o.price_total_sat), id=o.uuid)
                                 + '&amp;fe=%s' % quote_plus( o.sello, 'utf-8', 'strict', '=/').replace('%2B', '+')),200,200 )"/>
-                                        </td>
-                                        <td style="width: 25%;">
-                                            <div class="row font_inv">
-                                                <div class="col-xs-12 text-left">
-                                                    <span style="font-size:8px; display:block; width:180px; word-wrap:break-word;" t-field="o.sello" />
+                            </div>
+                            <div class="col-xs-6">
+                                <table class="table table-condensed">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 20%;">Sello Digital del Emisor</th>
+                                            <th style="width: 20%;">Sello Digital del SAT</th>
+                                            <th style="width: 20%;">Cadena Original</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="invoice_tbody">
+                                        <tr>
+                                            <td style="width: 20%;">
+                                                <div class="row font_inv">
+                                                    <div class="col-xs-12 text-left">
+                                                        <span style="font-size:8px; display:block; width:180px; word-wrap:break-word;" t-field="o.sello" />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td style="width: 25%;">
-                                            <div class="row font_inv">
-                                                <div class="col-xs-12 text-left">
-                                                    <span style="font-size:8px; display:block; width:180px; word-wrap:break-word;" t-field="o.sello_sat" />
+                                            </td>
+                                            <td style="width: 20%;">
+                                                <div class="row font_inv">
+                                                    <div class="col-xs-12 text-left">
+                                                        <span style="font-size:8px; display:block; width:180px; word-wrap:break-word;" t-field="o.sello_sat" />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td style="width: 25%;">
-                                            <div class="row font_inv">
-                                                <div class="col-xs-12 text-left">
-                                                    <span style="font-size:8px; display:block; width:180px; word-wrap:break-word;" t-field="o.cadena_sat" />
+                                            </td>
+                                            <td style="width: 20%;">
+                                                <div class="row font_inv">
+                                                    <div class="col-xs-12 text-left">
+                                                        <span style="font-size:8px; display:block; width:180px; word-wrap:break-word;" t-field="o.cadena_sat" />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+
+
+
+
+
+
+
                         </div>
                     </t>
                 </div>
+
+
+
+
+
+                <div class="footer text-center"  style="border-top: 1px solid black; height:150px;">
+                    <div class="row">
+                        <div class="col">
+                        Correo electrónico:
+                        <span t-field="o.company_id.partner_id.email"/>
+                        </div>
+                    </div>
+                    <div class="row" style="margin-top:0;">
+                        <div class="col">
+                            RFC: <span t-field="o.company_id.partner_id.vat"/> &#183; <span t-field="o.company_id.partner_id.name"/>
+                        </div>
+                    </div>
+                    <div style="margin-top:0;">
+                        <ul class="list-inline">
+                            <li>Página:</li>
+                            <li><span class="page"/></li>
+                            <li>/</li>
+                            <li><span class="topage"/></li>
+                        </ul>
+                    </div>
+                </div>
+
+
+
+
+
             </t>
         </template>
 

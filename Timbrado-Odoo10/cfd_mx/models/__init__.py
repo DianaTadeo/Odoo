@@ -11,6 +11,6 @@ import res_country
 import certificate
 import invoice
 import invoice_cfdi
-
+import account_move_line
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
 

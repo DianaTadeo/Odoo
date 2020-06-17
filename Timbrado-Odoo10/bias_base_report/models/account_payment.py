@@ -17,7 +17,7 @@ from odoo import _, api, fields, models,  tools
 from odoo.tools import DEFAULT_SERVER_TIME_FORMAT
 from odoo.tools.float_utils import float_compare
 from odoo.tools.misc import html_escape
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 from . import invoice_cfdi
 import logging
